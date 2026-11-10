@@ -67,3 +67,12 @@ def test_window_guard_rejects_origins_without_history(setup):
     early = pd.DataFrame({"station_id": ["S_A"], "origin": [panel["ts"].min() + pd.Timedelta(hours=5)], "h": [1]})
     with pytest.raises(ValueError):
         m._global_index(early["station_id"], early["origin"])
+
+
+def test_every_horizon_output_is_alive(setup):
+    """Regression: a ReLU output unit can die (zero gradient) and predict 0 for one horizon forever."""
+    panel, fit, hold = setup
+    m = _small(epochs=2).prepare(panel, fit).fit(fit, None)
+    p = m.predict(hold)
+    for h in range(1, 25):
+        assert (p[hold["h"].to_numpy() == h] > 1e-6).any(), f"horizon {h} predicts only zeros"

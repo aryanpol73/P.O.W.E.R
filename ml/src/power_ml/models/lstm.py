@@ -32,6 +32,13 @@ FUT_COLS = ("hour_sin", "hour_cos", "dow_sin", "dow_cos", "doy_sin", "doy_cos", 
             "temp_z", "precip_log")
 
 
+def _link(z: torch.Tensor) -> torch.Tensor:
+    """Non-negative output link. Softplus, not ReLU: a ReLU output unit that goes negative gets zero
+    gradient and never recovers (in the first trained model the h=21 output died and predicted 0
+    for every row)."""
+    return nn.functional.softplus(z)
+
+
 class _Net(nn.Module):
     def __init__(self, c_enc: int, c_fut: int, n_st: int, hidden: int, layers: int, dropout: float, emb: int) -> None:
         super().__init__()
@@ -152,7 +159,7 @@ class LSTMModel:
 
     def _forward(self, net: _Net, g: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x_enc, x_fut, st, y = self._batch(g)
-        return torch.relu(net(x_enc, x_fut, st)) * self._scale[st][:, None], y
+        return _link(net(x_enc, x_fut, st)) * self._scale[st][:, None], y
 
     def fit(self, train: pd.DataFrame, holdout: pd.DataFrame | None = None) -> LSTMModel:
         if not hasattr(self, "_enc"):
@@ -219,7 +226,7 @@ class LSTMModel:
         for i in range(0, len(g), 4096):
             gi = g[i:i + 4096]
             x_enc, x_fut, st, _ = self._batch_x(gi)
-            outs.append((torch.relu(net(x_enc, x_fut, st)) * self._scale[st][:, None]).numpy())
+            outs.append((_link(net(x_enc, x_fut, st)) * self._scale[st][:, None]).numpy())
         mat = np.concatenate(outs) if outs else np.zeros((0, H), np.float32)
         key = pd.MultiIndex.from_frame(pairs.astype({"station_id": str}))
         row = key.get_indexer(pd.MultiIndex.from_arrays([frame["station_id"].astype(str), frame["origin"]]))
