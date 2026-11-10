@@ -28,11 +28,11 @@ def parse(records: list[dict], cfg: AcnCfg) -> pd.DataFrame:
             return pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns, UTC]")
         return pd.to_datetime(df[col], utc=True, errors="coerce", format="mixed")
 
-    site = df["siteID"].astype(str) if "siteID" in df else pd.Series(cfg.site_id, index=df.index)
+    # Each export is for one site; the siteID field is numeric (e.g. "0002"), so name it from config.
     out = pd.DataFrame(
         {
             "session_hash": salted_hash(df["sessionID"]),
-            "station_id": "ACN_" + site.str.upper(),
+            "station_id": "ACN_" + cfg.site_id.upper(),
             "port_id": df["stationID"].astype(str),
             "port_kw": float(cfg.port_kw),
             "connect_time": ts("connectionTime"),
@@ -47,8 +47,25 @@ def parse(records: list[dict], cfg: AcnCfg) -> pd.DataFrame:
     return out.loc[:, list(SESSION_COLUMNS)]
 
 
-def load(path: str | Path, cfg: AcnCfg) -> pd.DataFrame:
-    with Path(path).open(encoding="utf-8") as fh:
-        payload = json.load(fh)
-    records = payload["_items"] if isinstance(payload, dict) and "_items" in payload else payload
-    return parse(records, cfg)
+def raw_files(root: Path, raw_path: str) -> list[Path]:
+    """The configured file plus any chunks named like it, e.g. acn_caltech_sessions_2019q1.json."""
+    p = root / raw_path
+    return sorted({*p.parent.glob(f"{p.stem}*{p.suffix}")})
+
+
+def load(paths: str | Path | list[Path], cfg: AcnCfg) -> pd.DataFrame:
+    """Load one or more ACN JSON exports and de-duplicate sessions across overlapping chunks."""
+    files = [Path(paths)] if isinstance(paths, str | Path) else list(paths)
+    records: list[dict] = []
+    for f in files:
+        try:
+            with f.open(encoding="utf-8") as fh:
+                payload = json.load(fh)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"{f.name} is not complete JSON ({e.msg} at line {e.lineno}): the download was probably cut off. "
+                "Re-download it, or split the date range into smaller files."
+            ) from e
+        records.extend(payload["_items"] if isinstance(payload, dict) and "_items" in payload else payload)
+    out = parse(records, cfg)
+    return out.drop_duplicates("session_hash").reset_index(drop=True)

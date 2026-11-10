@@ -179,3 +179,18 @@ def test_same_port_with_and_without_evse_id_counts_once():
     })
     s = palo_alto.parse(raw, PA_CFG, "America/Los_Angeles")
     assert s["port_id"].nunique() == 1
+
+
+def test_acn_chunks_merge_and_truncated_file_is_reported(tmp_path):
+    import json as _json
+    rec = {"sessionID": "s1", "stationID": "CA-1", "siteID": "0002", "connectionTime": "Wed, 25 Apr 2018 11:08:04 GMT",
+           "disconnectTime": "Wed, 25 Apr 2018 13:20:00 GMT", "doneChargingTime": None, "kWhDelivered": 7.5}
+    rec2 = {**rec, "sessionID": "s2"}
+    (tmp_path / "acn.json").write_text(_json.dumps({"_items": [rec, rec2]}))
+    (tmp_path / "acn_part2.json").write_text(_json.dumps({"_items": [rec2]}))     # overlaps chunk 1
+    files = acn.raw_files(tmp_path, "acn.json")
+    out = acn.load(files, AcnCfg(raw_path="acn.json"))
+    assert len(files) == 2 and len(out) == 2 and set(out["station_id"]) == {"ACN_CALTECH"}
+    (tmp_path / "acn_part3.json").write_text('{"_items": [{"sessionID": "s3",')
+    with pytest.raises(ValueError, match="acn_part3.json is not complete JSON"):
+        acn.load(acn.raw_files(tmp_path, "acn.json"), AcnCfg(raw_path="acn.json"))

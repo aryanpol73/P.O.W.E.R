@@ -73,10 +73,14 @@ def ingest(source: Source = typer.Option(Source.palo_alto)) -> None:
         sessions = palo_alto.load(raw_path, cfg.palo_alto, cfg.timezone)
         poi_default, poi_over = cfg.palo_alto.poi_default, cfg.palo_alto.poi_overrides
     else:
-        raw_path = _root() / cfg.acn.raw_path
-        if not raw_path.exists():
-            raise typer.BadParameter(f"{raw_path} not found. Export ACN sessions as JSON first.")
-        sessions = acn.load(raw_path, cfg.acn)
+        files = acn.raw_files(_root(), cfg.acn.raw_path)
+        if not files:
+            raise typer.BadParameter(f"no {cfg.acn.raw_path} (or *_partN chunks) found. Export ACN sessions as JSON first.")
+        try:
+            sessions = acn.load(files, cfg.acn)
+        except ValueError as e:
+            raise typer.BadParameter(str(e)) from e
+        raw_path = files[0]
         poi_default, poi_over = cfg.acn.poi, {}
 
     sx.assert_schema(sessions)
@@ -85,7 +89,8 @@ def ingest(source: Source = typer.Option(Source.palo_alto)) -> None:
     clean, stations, dropped = sx.drop_sparse_stations(clean, stations, cfg.cleaning.min_sessions_per_day_public)
     clean.to_parquet(_p("data", "interim", f"sessions_{source}.parquet"), index=False)
     stations.to_parquet(_p("data", "interim", f"stations_{source}.parquet"), index=False)
-    _update_manifest(source.value, raw_file=str(raw_path.relative_to(_root())), raw_sha256=_sha256(raw_path),
+    raw_list = files if source is Source.acn else [raw_path]
+    _update_manifest(source.value, raw_files={str(f.relative_to(_root())): _sha256(f) for f in raw_list},
                      cleaning=report.to_dict(), sparse_sites_dropped=dropped,
                      sites=len(stations), ports=int(stations["total_ports"].sum()),
                      sessions_after_site_filter=len(clean))
