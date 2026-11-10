@@ -205,5 +205,32 @@ def features(source: Source = typer.Option(Source.palo_alto),
     typer.echo(json.dumps(counts, indent=2))
 
 
+@app.command()
+def tune(source: Source = typer.Option(Source.palo_alto)) -> None:
+    """Optuna search for XGBoost/LightGBM inside the training block -> reports/tuning.json."""
+    from power_ml.tuning import tune as run_tune
+
+    typer.echo(json.dumps(run_tune(_root(), source.value, log=typer.echo), indent=2))
+
+
+@app.command()
+def train(source: Source = typer.Option(Source.palo_alto)) -> None:
+    """Fit the model zoo, calibrate on validation, write artifacts/models/<version>/."""
+    from power_ml.training import train_all
+
+    train_all(_root(), source.value, log=typer.echo)
+
+
+@app.command()
+def evaluate(source: Source = typer.Option(Source.palo_alto),
+             split: str = typer.Option("val", help="val | test | ood. The test split is logged on every run.")) -> None:
+    """Score saved models on a split and write the leaderboard and result tables to reports/."""
+    from power_ml.evaluation import evaluate as run_eval
+
+    if split not in ("val", "test", "ood"):
+        raise typer.BadParameter("split must be val, test or ood")
+    run_eval(_root(), source.value, split, log=typer.echo)
+
+
 if __name__ == "__main__":
     app()

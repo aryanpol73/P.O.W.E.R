@@ -74,6 +74,20 @@ def assign_split(origin: pd.Series, target_time: pd.Series, b: SplitBounds) -> n
     return labels
 
 
+def time_holdout(origin: pd.Series, target_time: pd.Series, frac: float, embargo_hours: int) -> tuple[np.ndarray, np.ndarray]:
+    """Split a block into (fit, holdout) row indices on time: the holdout is the last ``frac`` of
+    unique origins; fit rows must have their *target* at least ``embargo_hours`` before it."""
+    o = pd.DatetimeIndex(origin)
+    t = pd.DatetimeIndex(target_time)
+    uniq = np.sort(o.unique())
+    cut = pd.Timestamp(uniq[int(np.floor(len(uniq) * (1 - frac)))])
+    fit_idx = np.flatnonzero(t <= cut - pd.Timedelta(hours=embargo_hours))
+    hold_idx = np.flatnonzero(o >= cut)
+    if len(fit_idx) == 0 or len(hold_idx) == 0:
+        raise ValueError("time_holdout produced an empty part; lower frac or embargo")
+    return fit_idx, hold_idx
+
+
 class PanelTimeSeriesSplit:
     """Expanding-window CV on unique forecast origins, with an embargo measured in hours.
 

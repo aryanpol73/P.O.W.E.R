@@ -124,6 +124,14 @@ class CQR:
                 "q": {str(k): v for k, v in self.q_.items()}}
 
 
+def calibrator_from_dict(d: dict) -> SplitConformal | CQR:
+    """Rebuild a fitted calibrator from ``to_dict()`` output (quantiles only, no raw scores)."""
+    cls = CQR if d["kind"] == "cqr" else SplitConformal
+    obj = cls(alpha=float(d["alpha"]), buckets=tuple(tuple(b) for b in d["buckets"]))
+    obj.q_ = {int(k): float(v) for k, v in d["q"].items()}
+    return obj
+
+
 @dataclass
 class AdaptiveConformal:
     """alpha_{t+1} = alpha_t + gamma * (alpha - err_t), err_t = 1 if y_t was not covered."""
