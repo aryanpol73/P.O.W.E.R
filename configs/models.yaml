@@ -75,3 +75,17 @@ tune:
 
 ensemble:
   members: [xgb, lgbm]
+
+# M5 Seq2Seq LSTM (needs `uv sync --extra dl`; trained separately with `power-ml train-lstm`).
+lstm:
+  origin_stride: 2
+  lookback: 168
+  hidden: 64
+  layers: 2
+  dropout: 0.1
+  emb: 8
+  lr: 0.001
+  batch_size: 512
+  max_epochs: 20
+  patience: 3
+  max_minutes: 40

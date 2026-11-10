@@ -110,3 +110,15 @@ def test_reroute_respects_radius_and_headroom():
     assert by_src["HOT"] == pytest.approx(0.5 * (120 - 85))       # 17.5 of NEAR's 25 kWh headroom
     assert by_src["BUSY"] == pytest.approx(0.5 * (90 - 85))       # the second critical site uses what is left
     assert plan[-1].to_headroom_kwh == pytest.approx(25 - 17.5 - 2.5)
+
+
+def test_cusum_reports_each_regime_change_with_direction():
+    from power_core.drift import Cusum
+
+    rng = np.random.default_rng(5)
+    c = Cusum(k=0.5, h=5.0)
+    stream = np.concatenate([rng.normal(0, 1, 300), rng.normal(-3, 1, 20), rng.normal(0, 1, 100), rng.normal(3, 1, 20)])
+    alarms = [(i, d) for i, z in enumerate(stream) if (d := c.update(z))]
+    assert not [a for a in alarms if a[0] < 300]                       # no alarm in 300 in-control days
+    assert any(300 <= i < 320 and d == "down" for i, d in alarms)
+    assert any(i >= 420 and d == "up" for i, d in alarms)

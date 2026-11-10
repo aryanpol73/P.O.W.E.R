@@ -177,4 +177,50 @@ def load_artifacts(root: Path, version: str | None = None) -> tuple[dict[str, An
     manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
     models = {n: joblib.load(d / f"{n}.joblib") for n in manifest["models"] if n != "E1_ensemble"}
     ens = joblib.load(d / "E1_ensemble.joblib")
+    needs_panel = [m for m in models.values() if hasattr(m, "attach_panel")]
+    if needs_panel:  # sequence models read hourly history from the panel (not pickled with them)
+        panel = pd.read_parquet(root / "data" / "processed" / f"panel_{manifest['source']}.parquet")
+        for m in needs_panel:
+            m.attach_panel(panel)
     return models, ens, manifest
+
+
+def train_lstm(root: Path, source: str, log: Any = print) -> dict[str, Any]:
+    """Add M5 (LSTM) to the existing artefact version without touching the other models."""
+    from power_ml.models.lstm import LSTMModel
+
+    cfg = load_models_cfg(root)
+    lc = dict(cfg["lstm"])
+    stride = lc.pop("origin_stride")
+    out_dir = artifacts_dir(root, cfg["version"])
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    train = load_split(root, source, "train")
+    es_cfg = cfg["early_stopping"]
+    fit_idx, hold_idx = time_holdout(train["origin"], train["target_time"], es_cfg["holdout_frac"], es_cfg["embargo_hours"])
+    fit, hold = train.iloc[fit_idx].reset_index(drop=True), train.iloc[hold_idx].reset_index(drop=True)
+    del train
+    panel = pd.read_parquet(root / "data" / "processed" / f"panel_{source}.parquet")
+    model = LSTMModel(seed=cfg["seed"], tz=data_config_tz(root), **lc).prepare(panel, fit)
+    t0 = time.perf_counter()
+    model.fit(subsample_origins(fit, stride), subsample_origins(hold, stride))
+    dt = time.perf_counter() - t0
+    for rec in model.history_:
+        hw = rec.get("holdout_wape", float("nan"))
+        log(f"  epoch {rec['epoch']:>2}  train L1 {rec['train_l1']:.3f} kWh  holdout WAPE {hw:.4f}  ({rec['elapsed_s']}s)")
+    val = load_split(root, source, "val")
+    p = model.predict(val)
+    manifest["calibrators"][model.name] = SplitConformal(alpha=ALPHA).fit(val["y"].to_numpy(), p, val["h"].to_numpy()).to_dict()
+    manifest["val_wape"][model.name] = round(metrics.wape(val["y"], p), 4)
+    manifest["models"][model.name] = {"train_time_s": round(dt, 2),
+                                      "best_epoch": model.best_epoch_, "epochs_run": len(model.history_),
+                                      "origin_stride": stride, "history": model.history_, "git_sha": git_sha(root)}
+    joblib.dump(model, out_dir / f"{model.name}.joblib", compress=3)
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
+    log(f"{model.name}: val WAPE {manifest['val_wape'][model.name]} (best epoch {model.best_epoch_}, {dt:.0f}s)")
+    return manifest["models"][model.name]
+
+
+def data_config_tz(root: Path) -> str:
+    from power_core.config import data_config
+
+    return data_config(root).timezone

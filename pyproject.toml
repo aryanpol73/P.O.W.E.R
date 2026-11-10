@@ -5,6 +5,9 @@ description = "P.O.W.E.R. monorepo root (uv workspace)"
 requires-python = ">=3.12,<3.13"
 dependencies = ["power-core", "power-ml"]
 
+[project.optional-dependencies]
+dl = ["power-ml[dl]"]   # uv sync --extra dl  -> PyTorch for the LSTM
+
 [tool.uv]
 package = false
 

@@ -221,6 +221,14 @@ def train(source: Source = typer.Option(Source.palo_alto)) -> None:
     train_all(_root(), source.value, log=typer.echo)
 
 
+@app.command("train-lstm")
+def train_lstm_cmd(source: Source = typer.Option(Source.palo_alto)) -> None:
+    """Train M5 (Seq2Seq LSTM) and add it to the current artefact version. Needs `uv sync --extra dl`."""
+    from power_ml.training import train_lstm
+
+    train_lstm(_root(), source.value, log=typer.echo)
+
+
 @app.command()
 def evaluate(source: Source = typer.Option(Source.palo_alto),
              split: str = typer.Option("val", help="val | test | ood. The test split is logged on every run.")) -> None:
