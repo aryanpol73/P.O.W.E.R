@@ -153,25 +153,51 @@ def panel(source: Source = typer.Option(Source.palo_alto)) -> None:
 @app.command()
 def features(source: Source = typer.Option(Source.palo_alto),
              stride: int = typer.Option(0, help="origin stride in hours (0 = configs/features.yaml)")) -> None:
-    """Build direct multi-horizon design matrices and write one parquet per split."""
+    """Build direct multi-horizon design matrices and write one parquet per split.
+
+    Stations are built and written one at a time (streamed into one parquet file per split), so
+    peak memory is one station's rows rather than the whole multi-million-row table.
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
     dcfg, fcfg = data_config(_root()), feature_config(_root())
     pnl = pd.read_parquet(_p("data", "processed", f"panel_{source}.parquet"))
     stations = pd.read_parquet(_p("data", "interim", f"stations_{source}.parquet"))
     bounds = SplitBounds.from_dict(json.loads(_p("data", "processed", f"splits_{source}.json").read_text(encoding="utf-8")))
-    frame = build_direct_frame(pnl, stations, fcfg, tz=dcfg.timezone, pricing_changes=dcfg.pricing_changes,
-                               origin_stride_hours=stride or None)
-    frame["split"] = assign_split(frame["origin"], frame["target_time"], bounds)
     ood = pd.Timestamp(dcfg.window.ood_start).tz_convert("UTC")
-    frame.loc[frame["origin"] >= ood, "split"] = "ood"
-    counts = frame["split"].value_counts().to_dict()
-    for name in ("train", "val", "test", "ood"):
-        part = frame.loc[frame["split"] == name].drop(columns="split")
-        # Training rows get forecast-error weather augmentation; evaluation rows keep observed weather.
-        if name == "train" and fcfg.weather_augmentation.enabled:
-            part = augment_frame(part, fcfg)
-        part.to_parquet(_p("data", "processed", f"features_{source}_{name}.parquet"), index=False)
-    _update_manifest(source.value, direct_frame_rows={k: int(v) for k, v in counts.items()})
-    typer.echo(json.dumps({k: int(v) for k, v in counts.items()}, indent=2))
+    names = ("train", "val", "test", "ood")
+    writers: dict[str, pq.ParquetWriter] = {}
+    counts: dict[str, int] = {}
+    try:
+        for i, sid in enumerate(sorted(pnl["station_id"].unique())):
+            frame = build_direct_frame(pnl.loc[pnl["station_id"] == sid], stations, fcfg, tz=dcfg.timezone,
+                                       pricing_changes=dcfg.pricing_changes, origin_stride_hours=stride or None)
+            if frame.empty:
+                continue
+            split = assign_split(frame["origin"], frame["target_time"], bounds)
+            split[(frame["origin"] >= ood).to_numpy()] = "ood"
+            for k, v in pd.Series(split).value_counts().items():
+                counts[str(k)] = counts.get(str(k), 0) + int(v)
+            for name in names:
+                part = frame.loc[split == name]
+                if part.empty:
+                    continue
+                # Training rows get forecast-error weather augmentation; evaluation rows keep observed weather.
+                if name == "train" and fcfg.weather_augmentation.enabled:
+                    part = augment_frame(part, fcfg, seed=fcfg.weather_augmentation.seed + i)
+                table = pa.Table.from_pandas(part, preserve_index=False)
+                if name not in writers:
+                    writers[name] = pq.ParquetWriter(_p("data", "processed", f"features_{source}_{name}.parquet"),
+                                                     table.schema)
+                writers[name].write_table(table.cast(writers[name].schema))
+            typer.echo(f"  {sid}: {len(frame):,} rows")
+            del frame
+    finally:
+        for w in writers.values():
+            w.close()
+    _update_manifest(source.value, direct_frame_rows=counts)
+    typer.echo(json.dumps(counts, indent=2))
 
 
 if __name__ == "__main__":

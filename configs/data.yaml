@@ -8,8 +8,9 @@ palo_alto:
   raw_path: data/raw/palo_alto_sessions.csv
   download_url: null
   # Station names look like "PALO ALTO CA / HAMILTON #1"; the site is the text after
-  # the last " / " with any trailing "#n" removed.
-  site_regex: '^(?:.*/\s*)?(?P<site>[^#/]+?)\s*(?:#\s*\d+)?\s*$'
+  # the last " / " with any trailing port number removed ("#1", "# 1" or a bare "1",
+  # as in "RINCONADA LIB 1" and "SHERMAN 14").
+  site_regex: '^(?:.*/\s*)?(?P<site>[^#/]+?)\s*(?:#?\s*\d+)?\s*$'
   site_prefix: PA_
   # Nameplate power per port type (kW); used for physics checks and the capacity assumption.
   port_kw:

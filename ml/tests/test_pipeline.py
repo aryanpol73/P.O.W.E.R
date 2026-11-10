@@ -73,7 +73,7 @@ def test_cleaning_rules_and_report():
     assert imputed["charge_end_time"] == U("2019-01-05 11:00", tz="UTC")
 
 
-PA_CFG = PaloAltoCfg(raw_path="x", site_regex=r'^(?:.*/\s*)?(?P<site>[^#/]+?)\s*(?:#\s*\d+)?\s*$',
+PA_CFG = PaloAltoCfg(raw_path="x", site_regex=r'^(?:.*/\s*)?(?P<site>[^#/]+?)\s*(?:#?\s*\d+)?\s*$',
                      port_kw={"Level 2": 6.6, "Level 1": 1.9})
 
 
@@ -159,3 +159,23 @@ def test_blank_evse_ids_do_not_merge_stations():
     st = sx.build_station_table(s, "x")
     assert sorted(st["station_id"]) == ["PA_BRYANT", "PA_HAMILTON", "PA_HIGH"]
     assert st["total_ports"].tolist() == [1, 1, 1]
+
+
+@pytest.mark.parametrize("name,site", [
+    ("PALO ALTO CA / HAMILTON #1", "PA_HAMILTON"), ("PALO ALTO CA / BRYANT # 1", "PA_BRYANT"),
+    ("PALO ALTO CA / RINCONADA LIB 3", "PA_RINCONADA_LIB"), ("PALO ALTO CA / SHERMAN 14", "PA_SHERMAN"),
+    ("PALO ALTO CA / TED THOMPSON #4", "PA_TED_THOMPSON"), ("PALO ALTO CA / MPL #6", "PA_MPL"),
+])
+def test_site_grouping_real_station_names(name, site):
+    assert palo_alto.site_of(name, PA_CFG.site_regex, "PA_") == site
+
+
+def test_same_port_with_and_without_evse_id_counts_once():
+    raw = pd.DataFrame({
+        "Station Name": ["PALO ALTO CA / HAMILTON #1"] * 2, "Start Date": ["1/15/2013 08:00", "1/15/2019 08:00"],
+        "Start Time Zone": ["PST"] * 2, "Total Duration (hh:mm:ss)": ["02:00:00"] * 2,
+        "Charging Time (hh:mm:ss)": ["01:00:00"] * 2, "Energy (kWh)": ["5"] * 2, "Port Type": ["Level 2"] * 2,
+        "Port Number": ["2", "2"], "EVSE ID": [None, "6859"], "Latitude": ["37.44"] * 2, "Longitude": ["-122.16"] * 2,
+    })
+    s = palo_alto.parse(raw, PA_CFG, "America/Los_Angeles")
+    assert s["port_id"].nunique() == 1

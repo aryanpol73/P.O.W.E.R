@@ -144,6 +144,10 @@ def build_direct_frame(
             block["poi_category"] = str(meta["poi_category"])
             block["y"] = y.shift(-h).loc[mask].to_numpy()
             block["occ_target"] = occ.shift(-h).loc[mask].to_numpy()
+            # Cast now (not after the concat) so peak memory stays at float32 size.
+            num = [c for c in block.columns if c not in registry.ID_COLUMNS and c != "poi_category"
+                   and block[c].dtype.kind in "iufb"]
+            block[num] = block[num].astype(np.float32)
             frames.append(block.reset_index(drop=True))
 
     if not frames:

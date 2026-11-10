@@ -60,9 +60,8 @@ def parse(raw: pd.DataFrame, cfg: PaloAltoCfg, tz: str) -> pd.DataFrame:
 
     port_type = df["port type"].astype(str).str.strip() if "port type" in df else pd.Series("Level 2", index=df.index)
     port_kw = port_type.map(cfg.port_kw).fillna(cfg.default_port_kw).astype(float)
-    # EVSE ID is often blank in the export, so the port key always starts with the station name;
-    # otherwise ports at different stations collide (e.g. "nan:1").
-    evse = df["evse id"].fillna("").astype(str).str.strip() if "evse id" in df else pd.Series("", index=df.index)
+    # A physical port is (station name, port number). EVSE ID is blank in older rows and filled in
+    # newer ones (and changes when hardware is swapped), so including it would double-count ports.
     station_name = df["station name"].astype(str).str.strip()
     port_no = df["port number"].fillna("1").astype(str) if "port number" in df else pd.Series("1", index=df.index)
 
@@ -70,7 +69,7 @@ def parse(raw: pd.DataFrame, cfg: PaloAltoCfg, tz: str) -> pd.DataFrame:
         {
             "session_hash": salted_hash(key),
             "station_id": df["station name"].map(lambda s: site_of(s, cfg.site_regex, cfg.site_prefix)),
-            "port_id": station_name + "|" + evse + ":" + port_no.str.strip(),
+            "port_id": station_name + ":" + port_no.str.strip(),
             "port_kw": port_kw,
             "connect_time": connect,
             "charge_end_time": connect + charging,
