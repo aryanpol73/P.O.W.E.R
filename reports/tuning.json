@@ -1,0 +1,32 @@
+{
+  "lgbm": {
+    "best_value_wape": 0.55658,
+    "best_params": {
+      "num_leaves": 17,
+      "min_child_samples": 74,
+      "subsample": 0.5713454147709467,
+      "colsample_bytree": 0.9287109624835289,
+      "reg_alpha": 0.1764320074366052,
+      "reg_lambda": 5.332181390281681,
+      "tweedie_variance_power": 1.5176972919883807
+    },
+    "n_trials": 25,
+    "n_pruned": 15,
+    "elapsed_s": 99.3
+  },
+  "xgb": {
+    "best_value_wape": 0.54943,
+    "best_params": {
+      "max_depth": 3,
+      "min_child_weight": 32.786255233785155,
+      "subsample": 0.8357048947798229,
+      "colsample_bytree": 0.8719231646098796,
+      "reg_alpha": 2.671145894787704,
+      "reg_lambda": 3.357946495862244,
+      "tweedie_variance_power": 1.6577532760007145
+    },
+    "n_trials": 25,
+    "n_pruned": 13,
+    "elapsed_s": 270.0
+  }
+}
