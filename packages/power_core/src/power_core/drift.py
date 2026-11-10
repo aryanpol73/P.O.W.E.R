@@ -49,6 +49,29 @@ def seasonal_psi(ref: pd.DataFrame, cur: pd.DataFrame, feature: str, bucket: str
 
 
 @dataclass
+class Cusum:
+    """Two-sided CUSUM on a stream already standardised against a reference (mean 0, sd 1).
+
+    ``k`` is the allowance (half the shift to detect, in sd units), ``h`` the decision threshold.
+    After an alarm both sums reset, so successive regime changes are each reported.
+    """
+
+    k: float = 0.5
+    h: float = 5.0
+    pos: float = 0.0
+    neg: float = 0.0
+
+    def update(self, z: float) -> str | None:
+        self.pos = max(0.0, self.pos + z - self.k)
+        self.neg = max(0.0, self.neg - z - self.k)
+        if self.pos > self.h or self.neg > self.h:
+            direction = "up" if self.pos > self.h else "down"
+            self.pos = self.neg = 0.0
+            return direction
+        return None
+
+
+@dataclass
 class PageHinkley:
     """Detects an upward shift in the mean of a stream (e.g. |standardised residual|)."""
 

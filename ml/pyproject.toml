@@ -12,6 +12,7 @@ dependencies = [
     "lightgbm>=4.7",  # eval_X / eval_y API
     "optuna>=4.0",
     "joblib>=1.4",
+    "matplotlib>=3.9",
 ]
 
 [project.scripts]

@@ -1,0 +1,4 @@
+group,n,mean_y,wape_M4_lightgbm_quantile,wape_M4_lightgbm,wape_B1_seasonal_naive_24h,wape_B3_climatology
+cool,267504,3.989,0.5786,0.6322,0.8411,0.7649
+mild,258000,6.847,0.4724,0.493,0.7053,0.5843
+warm,261024,9.739,0.4176,0.4251,0.6073,0.4993
