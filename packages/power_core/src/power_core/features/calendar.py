@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date, timedelta
+from functools import lru_cache
 
 import holidays as holidays_lib
 import numpy as np
@@ -12,8 +13,14 @@ import pandas as pd
 TWO_PI = 2.0 * np.pi
 
 
-def _holiday_set(years: Sequence[int]) -> set[date]:
-    return set(holidays_lib.country_holidays("US", subdiv="CA", years=list(years)).keys())
+@lru_cache(maxsize=32)
+def _holiday_set_cached(years: tuple[int, ...]) -> frozenset[date]:
+    return frozenset(holidays_lib.country_holidays("US", subdiv="CA", years=list(years)).keys())
+
+
+def _holiday_set(years: Sequence[int]) -> frozenset[date]:
+    """US + California holidays; cached because building the calendar costs ~0.1 s per call."""
+    return _holiday_set_cached(tuple(years))
 
 
 def calendar_features(ts_utc: pd.DatetimeIndex, tz: str, pricing_changes: Sequence[str] = ()) -> pd.DataFrame:

@@ -30,3 +30,7 @@ mlruns/
 Thumbs.db
 ~$*
 reports/*.parquet
+
+# Local database (SQLite + WAL files)
+data/*.db
+data/*.db-*

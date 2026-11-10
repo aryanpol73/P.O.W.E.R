@@ -54,8 +54,9 @@ The full design is in [docs/02_system_blueprint.md](docs/02_system_blueprint.md)
 | P0 | Monorepo scaffold, configs, CI | ✅ done |
 | P1 | Ingest (Palo Alto, ACN), anonymisation, cleaning, hourly resampling, Open-Meteo back-fill | ✅ done (run on real data pending) |
 | P2 | `power_core`: anchor-typed features, panel splits, metrics, DM test, conformal, drift, grid logic + leakage tests | ✅ done |
-| P3–P4 | Models, Optuna, calibration, evaluation, SHAP | ⏳ next |
-| P5–P7 | API, database, workers, PWA, MCP | ⏳ planned |
+| P3–P4 | 4 baselines + Ridge, RF, XGBoost, LightGBM (+ q05/q50/q95), LSTM, ensemble; Optuna; CQR; evaluation; SHAP; error analysis; COVID stress test | ✅ done |
+| P5 | Backend: database, FastAPI REST + WebSocket, serving engine, simulator + replay / forecast / alert / weather agents | ✅ done (SQLite; PostgreSQL supported but not yet run) |
+| P6–P7 | Next.js PWA, MCP server, retrain / drift / discovery agents | ⏳ next |
 
 What works today (Python 3.12 + `uv`):
 
@@ -67,7 +68,21 @@ uv run power-ml resample --source palo_alto
 uv run power-ml weather  --source palo_alto   # Open-Meteo archive, cached
 uv run power-ml panel    --source palo_alto
 uv run power-ml features --source palo_alto   # data/processed/features_palo_alto_{train,val,test,ood}.parquet
+uv run power-ml tune     --source palo_alto   # Optuna -> reports/tuning.json
+uv run power-ml train    --source palo_alto   # artifacts/models/<version>/
+uv run power-ml train-lstm --source palo_alto # needs: uv sync --extra dl
+uv run power-ml evaluate --source palo_alto --split test
+uv run power-ml analyze  --source palo_alto   # SHAP, error analysis, COVID stress test
 ```
+
+Backend (after the steps above):
+
+```bash
+uv run power-api seed                     # load stations, hourly history, weather into data/power.db (SQLite)
+uv run power-api serve                    # http://127.0.0.1:8000/docs ; simulator runs inside the API
+```
+Then `POST /api/v1/sim/control {"action": "play"}` starts the replay clock; `WS /ws/stream` streams events.
+Set `DATABASE_URL=postgresql+asyncpg://...` and `uv sync --extra postgres` for PostgreSQL.
 
 ## Prerequisites
 
@@ -136,7 +151,7 @@ The test split is evaluated **once** by `make evaluate`. Re-running it with the 
 | Open-Meteo Archive / Forecast | Weather back-fill / live | Archive = observed (training); forecast = live serving |
 | OpenChargeMap | Context stations on map (cold-start priors only) | Not used in accuracy metrics |
 
-Transformer capacities are a **synthetic planning assumption** (`C = 0.7 × Σ port kW`, configurable). No public dataset publishes them.
+Transformer capacities are a **synthetic planning assumption** (`C = DF × Σ port kW`, DF = 1.0 by default and configurable). No public dataset publishes them.
 
 ## Tests
 

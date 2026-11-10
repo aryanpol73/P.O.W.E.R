@@ -126,6 +126,7 @@ class AlertCfg(BaseModel):
     critical_raise: float = 0.85
     critical_clear: float = 0.80
     clear_consecutive: int = 2
+    lookahead_hours: int = 12
 
 
 class MapColoursCfg(BaseModel):
@@ -152,7 +153,7 @@ class DriftCfg(BaseModel):
 
 
 class ThresholdConfig(BaseModel):
-    diversity_factor: float = 0.70
+    diversity_factor: float = 1.0
     interval_level: float = 0.90
     horizon_buckets: list[tuple[int, int]] = Field(default_factory=lambda: [(1, 3), (4, 12), (13, 24)])
     alert: AlertCfg = Field(default_factory=AlertCfg)

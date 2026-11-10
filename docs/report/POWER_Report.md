@@ -85,7 +85,7 @@ Secondary outputs: predicted port utilisation, idle-port share, a transformer lo
 
 ## 1.5 Scope and assumptions
 
-In scope: hourly site-level forecasting for public Level-2 sites in one city, simulated real-time replay, and live weather. Out of scope: actuating chargers (OCPP `SetChargingProfile`), sub-hourly power control and retail tariff design. **Key assumption:** transformer ratings are not public. Capacity is modelled as C_s = DF × Σ port kW with DF = 0.7, and sensitivity is reported for DF ∈ {0.5, 0.7, 0.9}.
+In scope: hourly site-level forecasting for public Level-2 sites in one city, simulated real-time replay, and live weather. Out of scope: actuating chargers (OCPP `SetChargingProfile`), sub-hourly power control and retail tariff design. **Key assumption:** transformer ratings are not public. Capacity is modelled as C_s = DF × Σ port kW with DF = 1.0 (EV chargers are continuous loads whose supply is sized at ≥ 125% of charger rating), and alert frequency is reported for DF ∈ {0.85, 1.0} and lookaheads of 6, 12 and 24 hours.
 
 # 2. Literature Review
 

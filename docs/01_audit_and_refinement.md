@@ -154,7 +154,7 @@ Use `n_splits = 5`, expanding window, splitting only *inside* the 70% training b
 ### F12 (M) — Transformer capacity is not in any dataset
 **Problem.** Neither Palo Alto nor ACN publishes distribution-transformer ratings, so ">85% of transformer rating" has no ground truth.
 
-**Upgrade.** Define `C_s = DF · P_s^port` with a documented **diversity factor** `DF` (default 0.7, configurable per station), state it as a **synthetic planning assumption** in the data card, and run a sensitivity table of alert counts for DF ∈ {0.5, 0.7, 0.9}. Also note that hourly kWh is **mean** power: intra-hour peaks are higher, so alerts are evaluated on the **upper quantile** `q̂_0.95`.
+**Upgrade.** Define `C_s = DF · P_s^port` with a documented **diversity factor** `DF` (configurable per station), state it as a **synthetic planning assumption** in the data card, and run a sensitivity table of alert counts. *Implementation note:* the default is now DF = 1.0. EV chargers are continuous loads whose supply is sized at ≥ 125% of charger rating, and at DF 0.7 alerts fired almost constantly in the test period (one site CRITICAL in 100% of hours). Also note that hourly kWh is **mean** power: intra-hour peaks are higher, so alerts are evaluated on the **upper quantile** `q̂_0.95`.
 
 ### F13 (M) — Serving-stack pitfalls
 - **APScheduler inside Uvicorn with `--workers > 1`** starts every job once per worker. → Run a **separate `worker` process** (single instance) and keep the API stateless.

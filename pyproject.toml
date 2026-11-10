@@ -3,7 +3,7 @@ name = "power-workspace"
 version = "0.1.0"
 description = "P.O.W.E.R. monorepo root (uv workspace)"
 requires-python = ">=3.12,<3.13"
-dependencies = ["power-core", "power-ml"]
+dependencies = ["power-core", "power-ml", "power-api"]
 
 [project.optional-dependencies]
 dl = ["power-ml[dl]"]   # uv sync --extra dl  -> PyTorch for the LSTM
@@ -12,11 +12,12 @@ dl = ["power-ml[dl]"]   # uv sync --extra dl  -> PyTorch for the LSTM
 package = false
 
 [tool.uv.workspace]
-members = ["packages/power_core", "ml"]
+members = ["packages/power_core", "ml", "services/api"]
 
 [tool.uv.sources]
 power-core = { workspace = true }
 power-ml = { workspace = true }
+power-api = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -29,7 +30,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/power_core/tests", "ml/tests"]
+testpaths = ["packages/power_core/tests", "ml/tests", "services/api/tests"]
 markers = ["leakage: tests that prove no future information reaches features or splits"]
 addopts = "-ra"
 
@@ -45,7 +46,7 @@ ignore = ["N803", "N806"]  # X, T, N_s are conventional in ML/maths code
 "ml/src/power_ml/cli.py" = ["B008"]  # typer.Option() defaults are the documented Typer idiom
 
 [tool.ruff.lint.isort]
-known-first-party = ["power_core", "power_ml"]
+known-first-party = ["power_core", "power_ml", "power_api"]
 
 [tool.mypy]
 python_version = "3.12"
