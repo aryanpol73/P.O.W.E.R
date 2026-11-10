@@ -143,3 +143,19 @@ def test_fetch_archive_batches_locations():
                          ["temperature_2m", "precipitation"], client=client)
     assert set(w["station_id"]) == {"A", "B"} and len(w) == 4
     assert w["ts"].dt.tz is not None and "temperature_2m_c" in w
+
+
+def test_blank_evse_ids_do_not_merge_stations():
+    """Regression: the real export has empty EVSE IDs; ports must stay distinct per station."""
+    raw = pd.DataFrame({
+        "Station Name": ["PALO ALTO CA / HAMILTON #1", "PALO ALTO CA / BRYANT #1", "PALO ALTO CA / HIGH #1"],
+        "Start Date": ["1/15/2019 08:00"] * 3, "Start Time Zone": ["PST"] * 3,
+        "Total Duration (hh:mm:ss)": ["02:00:00"] * 3, "Charging Time (hh:mm:ss)": ["01:00:00"] * 3,
+        "Energy (kWh)": ["5"] * 3, "Port Type": ["Level 2"] * 3, "Port Number": ["1", "1", None],
+        "EVSE ID": [None, None, None], "Latitude": ["37.44"] * 3, "Longitude": ["-122.16"] * 3,
+    })
+    s = palo_alto.parse(raw, PA_CFG, "America/Los_Angeles")
+    assert s["port_id"].nunique() == 3
+    st = sx.build_station_table(s, "x")
+    assert sorted(st["station_id"]) == ["PA_BRYANT", "PA_HAMILTON", "PA_HIGH"]
+    assert st["total_ports"].tolist() == [1, 1, 1]

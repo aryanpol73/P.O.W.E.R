@@ -100,7 +100,7 @@ def clean_sessions(df: pd.DataFrame, cfg: CleaningCfg) -> tuple[pd.DataFrame, Cl
 
 def build_station_table(sessions: pd.DataFrame, poi_default: str, poi_overrides: dict[str, str] | None = None) -> pd.DataFrame:
     """One row per site. ``total_ports`` counts distinct ports ever seen (an upper bound early on)."""
-    ports = sessions.drop_duplicates("port_id")[["station_id", "port_id", "port_kw", "latitude", "longitude"]]
+    ports = sessions.drop_duplicates(["station_id", "port_id"])[["station_id", "port_id", "port_kw", "latitude", "longitude"]]
     agg = ports.groupby("station_id").agg(
         total_ports=("port_id", "nunique"),
         rated_kw_total=("port_kw", "sum"),
