@@ -1,0 +1,11 @@
+{
+  "name": "power-report-tools",
+  "private": true,
+  "description": "Builds the Word report from docs/report/POWER_Report.md (native OMML equations).",
+  "scripts": {
+    "report": "node md2docx.js ../../docs/report/POWER_Report.md ../../docs/report/POWER_Technical_Report.docx report"
+  },
+  "dependencies": {
+    "docx": "9.15.3"
+  }
+}

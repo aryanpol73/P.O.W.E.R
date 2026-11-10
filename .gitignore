@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.turbo/
+dist/
+
+# Data & artefacts (reproduced by make targets; manifests are tracked)
+data/raw/
+data/interim/
+data/processed/
+data/external/
+!data/manifest.json
+artifacts/
+mlruns/
+reports/figures/*.png
+
+# Env & OS
+.env
+.DS_Store
+Thumbs.db
+~$*
