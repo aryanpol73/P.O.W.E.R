@@ -2,7 +2,7 @@
   "split": "ood",
   "model_version": "2026.11.0",
   "git_sha_of_models": "9d4809deeb72b558fe722248d574447f4aec8bfd",
-  "evaluated_at": "2026-11-10T15:37:20+00:00",
+  "evaluated_at": "2026-11-10T16:02:55+00:00",
   "rows": 559584,
   "origin_range": [
     "2020-03-01 08:00:00+00:00",
@@ -66,7 +66,7 @@
         "winkler": 14.8645
       },
       "train_time_s": 0.0,
-      "latency_ms_one_origin": 0.0,
+      "latency_ms_one_origin": 0.01,
       "wape_day_ahead_midnight": 1.1394
     },
     "B3_climatology": {
@@ -84,7 +84,7 @@
         "winkler": 26.4165
       },
       "train_time_s": 1.75,
-      "latency_ms_one_origin": 0.76,
+      "latency_ms_one_origin": 0.97,
       "wape_day_ahead_midnight": 2.5839
     },
     "M1_ridge": {
@@ -102,7 +102,7 @@
         "winkler": 12.2783
       },
       "train_time_s": 30.0,
-      "latency_ms_one_origin": 2.8,
+      "latency_ms_one_origin": 1.8,
       "wape_day_ahead_midnight": 1.1803
     },
     "M2_random_forest": {
@@ -120,7 +120,7 @@
         "winkler": 12.1034
       },
       "train_time_s": 104.19,
-      "latency_ms_one_origin": 43.82,
+      "latency_ms_one_origin": 31.37,
       "wape_day_ahead_midnight": 1.2407
     },
     "M3_xgboost": {
@@ -138,7 +138,7 @@
         "winkler": 11.6578
       },
       "train_time_s": 52.81,
-      "latency_ms_one_origin": 4.46,
+      "latency_ms_one_origin": 2.56,
       "wape_day_ahead_midnight": 1.0792
     },
     "M4_lightgbm": {
@@ -156,7 +156,7 @@
         "winkler": 11.5692
       },
       "train_time_s": 18.73,
-      "latency_ms_one_origin": 4.8,
+      "latency_ms_one_origin": 2.89,
       "wape_day_ahead_midnight": 1.0778
     },
     "M4_lightgbm_quantile": {
@@ -189,8 +189,26 @@
         "0.95": 0.3782
       },
       "train_time_s": 73.73,
-      "latency_ms_one_origin": 12.55,
+      "latency_ms_one_origin": 10.76,
       "wape_day_ahead_midnight": 0.9514
+    },
+    "M5_lstm": {
+      "mae": 2.3689,
+      "rmse": 3.7338,
+      "wape": 1.323,
+      "r2": 0.1053,
+      "mape_filtered": 79.2009,
+      "n": 559584.0,
+      "mase": 0.6295,
+      "peak_mae": 8.6404,
+      "interval_split_conformal": {
+        "picp": 0.9667,
+        "mpiw": 11.0681,
+        "winkler": 12.8915
+      },
+      "train_time_s": 896.99,
+      "latency_ms_one_origin": 24.17,
+      "wape_day_ahead_midnight": 1.3328
     },
     "E1_ensemble": {
       "mae": 1.9423,
@@ -207,7 +225,7 @@
         "winkler": 11.5692
       },
       "train_time_s": 71.54,
-      "latency_ms_one_origin": 9.09,
+      "latency_ms_one_origin": 6.27,
       "wape_day_ahead_midnight": 1.0778
     }
   }
