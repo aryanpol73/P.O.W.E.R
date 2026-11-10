@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 
 from power_api.bus import InProcessBus
@@ -63,4 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(api.router, prefix="/api/v1")
     app.include_router(ws.router)
+    figures = settings.repo_root / "reports" / "figures"
+    if figures.is_dir():  # report figures (SHAP, error analysis, stress test) for the Insights page
+        app.mount("/figures", StaticFiles(directory=figures), name="figures")
     return app

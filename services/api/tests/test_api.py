@@ -122,3 +122,11 @@ def test_websocket_streams_pipeline_events(client):
         client.post("/api/v1/sim/tick")
         events = [ws.receive_json()["event"] for _ in range(2)]
         assert events == ["forecast.updated", "sim.clock"]
+
+
+def test_insight_endpoints_report_missing_files_clearly(client):
+    # the synthetic root has no analysis outputs: endpoints must say how to produce them
+    r = client.get("/api/v1/insights/shap")
+    assert r.status_code == 404 and "power-ml analyze" in r.json()["detail"]
+    rows = client.get("/api/v1/models/horizons", params={"split": "val"}).json()
+    assert {r["h"] for r in rows} == set(range(1, 25))

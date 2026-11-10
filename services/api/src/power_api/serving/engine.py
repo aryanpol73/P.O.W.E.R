@@ -66,15 +66,16 @@ class ServingEngine:
         return out
 
     def _training_ranges(self) -> dict[str, tuple[float, float]]:
-        """p1/p99 of weather in the training block, used to flag out-of-distribution scenarios."""
-        cache = self.root / "artifacts" / "models" / self.version / "training_ranges.json"
+        """Observed min/max of weather in the training block. Trees cannot extrapolate past the values they
+        saw, so a scenario is flagged only beyond this support (p1/p99 flagged ordinary hot days)."""
+        cache = self.root / "artifacts" / "models" / self.version / "training_support.json"
         if cache.exists():
             return {k: tuple(v) for k, v in json.loads(cache.read_text(encoding="utf-8")).items()}
         path = self.root / "data" / "processed" / f"features_{self.source}_train.parquet"
         out: dict[str, tuple[float, float]] = {}
         if path.exists():
             df = pd.read_parquet(path, columns=["temperature_2m_c", "precipitation_mm"])
-            out = {c: (float(df[c].quantile(0.01)), float(df[c].quantile(0.99))) for c in df.columns}
+            out = {c: (float(df[c].min()), float(df[c].max())) for c in df.columns}
             cache.write_text(json.dumps(out), encoding="utf-8")
         return out
 
@@ -217,8 +218,8 @@ class ServingEngine:
                         "feature": col,
                         "min": round(float(vals.min()), 2),
                         "max": round(float(vals.max()), 2),
-                        "train_p1": round(lo_hi[0], 2),
-                        "train_p99": round(lo_hi[1], 2),
+                        "train_min": round(lo_hi[0], 2),
+                        "train_max": round(lo_hi[1], 2),
                         "message": "Outside the training range: tree models plateau, so treat the effect as indicative.",
                     }
                 )

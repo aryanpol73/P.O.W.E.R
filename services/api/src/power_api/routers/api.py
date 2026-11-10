@@ -604,3 +604,37 @@ async def datacard(request: Request) -> dict[str, Any]:
             "replay_weather": "archive (observed) weather is used as a perfect forecast in REPLAY mode",
         },
     }
+
+
+# ------------------------------------------------------------------ insights (offline analysis results)
+def _report(request: Request, name: str) -> Any:
+    import json
+
+    p = request.app.state.engine.root / "reports" / name
+    if not p.exists():
+        raise HTTPException(404, f"reports/{name} not found: run `power-ml analyze`")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+@router.get("/insights/shap", tags=["insights"])
+async def insights_shap(request: Request) -> dict[str, Any]:
+    """Global SHAP importance, feature groups and local example narratives (test period)."""
+    return _report(request, "shap_summary.json")
+
+
+@router.get("/insights/errors", tags=["insights"])
+async def insights_errors(request: Request) -> dict[str, Any]:
+    return _report(request, "error_analysis.json")
+
+
+@router.get("/insights/stress", tags=["insights"])
+async def insights_stress(request: Request) -> dict[str, Any]:
+    return _report(request, "stress_test.json")
+
+
+@router.get("/models/horizons", tags=["models"])
+async def model_horizons(request: Request, split: Literal["val", "test", "ood"] = "test") -> list[dict[str, Any]]:
+    p = request.app.state.engine.root / "reports" / f"metrics_by_horizon_{split}.csv"
+    if not p.exists():
+        raise HTTPException(404, f"{p.name} not found")
+    return pd.read_csv(p).round(4).to_dict(orient="records")
