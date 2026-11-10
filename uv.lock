@@ -562,7 +562,7 @@ dependencies = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "joblib", specifier = ">=1.4" },
-    { name = "lightgbm", specifier = ">=4.5" },
+    { name = "lightgbm", specifier = ">=4.7" },
     { name = "optuna", specifier = ">=4.0" },
     { name = "power-core", editable = "packages/power_core" },
     { name = "scikit-learn", specifier = ">=1.5" },

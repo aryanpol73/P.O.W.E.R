@@ -78,7 +78,7 @@ class LGBMModel:
         self.model_ = self._make()
         kw: dict = {}
         if holdout is not None:
-            kw = {"eval_set": [(holdout[self.columns_], holdout["y"])], "eval_metric": "l1",
+            kw = {"eval_X": (holdout[self.columns_],), "eval_y": (holdout["y"],), "eval_metric": "l1",
                   "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)]}
         self.model_.fit(Xt, train["y"], **kw)
         self.best_iteration_ = self.model_.best_iteration_ or None
@@ -111,7 +111,7 @@ class LGBMQuantile:
                                   verbose=-1, **self.params)
             kw: dict = {}
             if holdout is not None:
-                kw = {"eval_set": [(holdout[self.columns_], holdout["y"])], "eval_metric": "quantile",
+                kw = {"eval_X": (holdout[self.columns_],), "eval_y": (holdout["y"],), "eval_metric": "quantile",
                       "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)]}
             m.fit(Xt, train["y"], **kw)
             self.models_[a] = m

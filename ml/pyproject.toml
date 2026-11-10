@@ -9,7 +9,7 @@ dependencies = [
     "typer>=0.12",
     "scikit-learn>=1.5",
     "xgboost>=2.1",
-    "lightgbm>=4.5",
+    "lightgbm>=4.7",  # eval_X / eval_y API
     "optuna>=4.0",
     "joblib>=1.4",
 ]

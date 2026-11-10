@@ -52,9 +52,13 @@ def artifacts_dir(root: Path, version: str) -> Path:
 
 
 def git_sha(root: Path) -> str:
+    """HEAD commit, suffixed with '-dirty' when tracked source files have uncommitted changes."""
     try:
-        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True,
-                              check=True).stdout.strip()
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True,
+                             check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root,
+                               capture_output=True, text=True, check=True).stdout.strip()
+        return f"{sha}-dirty" if dirty else sha
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
