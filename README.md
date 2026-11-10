@@ -47,6 +47,28 @@ The full design is in [docs/02_system_blueprint.md](docs/02_system_blueprint.md)
 | `notebooks/` | Narrative EDA / results notebooks (logic lives in packages) |
 | `reports/` | Metrics, figures, data card, model card, final report |
 
+## Implementation status
+
+| Phase | Scope | State |
+|---|---|---|
+| P0 | Monorepo scaffold, configs, CI | ✅ done |
+| P1 | Ingest (Palo Alto, ACN), anonymisation, cleaning, hourly resampling, Open-Meteo back-fill | ✅ done (run on real data pending) |
+| P2 | `power_core`: anchor-typed features, panel splits, metrics, DM test, conformal, drift, grid logic + leakage tests | ✅ done |
+| P3–P4 | Models, Optuna, calibration, evaluation, SHAP | ⏳ next |
+| P5–P7 | API, database, workers, PWA, MCP | ⏳ planned |
+
+What works today (Python 3.12 + `uv`):
+
+```bash
+uv sync                                   # install the locked environment
+uv run pytest -q                          # 38 tests, incl. leakage proofs (-m leakage)
+uv run power-ml ingest   --source palo_alto   # needs data/raw/palo_alto_sessions.csv
+uv run power-ml resample --source palo_alto
+uv run power-ml weather  --source palo_alto   # Open-Meteo archive, cached
+uv run power-ml panel    --source palo_alto
+uv run power-ml features --source palo_alto   # data/processed/features_palo_alto_{train,val,test,ood}.parquet
+```
+
 ## Prerequisites
 
 - Docker 24+ and Docker Compose v2

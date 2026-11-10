@@ -1,0 +1,21 @@
+[project]
+name = "power-core"
+version = "0.1.0"
+description = "Shared feature engineering, splits, metrics, conformal and grid logic for P.O.W.E.R. (used by training AND serving)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=1.26,<2.5",  # numpy 2.5 + pandas 2.3 emits 'generic timedelta unit' deprecations on every Timedelta op
+    "pandas>=2.2,<3",
+    "scipy>=1.13",
+    "pyarrow>=16",
+    "pydantic>=2.7,<3",
+    "pyyaml>=6.0",
+    "holidays>=0.55",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/power_core"]

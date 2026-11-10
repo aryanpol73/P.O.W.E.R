@@ -1,0 +1,59 @@
+# Data configuration. Every value here is documented in the data card (report Chapter 3).
+timezone: America/Los_Angeles
+
+palo_alto:
+  # Download the CSV from the City of Palo Alto open-data portal
+  # ("Electric Vehicle Charging Station Usage") and either place it at raw_path
+  # or set download_url. Verify the URL before relying on it.
+  raw_path: data/raw/palo_alto_sessions.csv
+  download_url: null
+  # Station names look like "PALO ALTO CA / HAMILTON #1"; the site is the text after
+  # the last " / " with any trailing "#n" removed.
+  site_regex: '^(?:.*/\s*)?(?P<site>[^#/]+?)\s*(?:#\s*\d+)?\s*$'
+  site_prefix: PA_
+  # Nameplate power per port type (kW); used for physics checks and the capacity assumption.
+  port_kw:
+    "Level 1": 1.9
+    "Level 2": 6.6
+    "DC Fast": 50.0
+  default_port_kw: 6.6
+
+  poi_default: downtown_public
+  poi_overrides: {}             # e.g. {PA_RINCONADA_LIB: library_community}
+
+acn:
+  # Export sessions as JSON from the ACN-Data portal (free account + token required).
+  raw_path: data/raw/acn_caltech_sessions.json
+  site_id: caltech
+  port_kw: 6.6
+  latitude: 34.1377             # approximate campus location (used for weather + map)
+  longitude: -118.1253
+  poi: workplace
+
+window:
+  # Main experiment: pre-COVID. OOD stress test: the first COVID months.
+  start: "2017-01-01T00:00:00-08:00"
+  end: "2020-02-29T23:00:00-08:00"
+  ood_start: "2020-03-01T00:00:00-08:00"
+  ood_end: "2020-06-30T23:00:00-07:00"
+
+split:
+  train_frac: 0.70
+  val_frac: 0.15
+  test_frac: 0.15
+  embargo_hours: 168
+
+cleaning:
+  max_duration_hours: 48
+  min_failed_duration_minutes: 5
+  power_tolerance: 1.10        # implied kW may exceed port kW by at most 10%
+  min_sessions_per_day_public: 1.0
+
+weather:
+  archive_url: https://archive-api.open-meteo.com/v1/archive
+  forecast_url: https://api.open-meteo.com/v1/forecast
+  hourly: [temperature_2m, precipitation]
+  cache_path: data/external/weather_archive.parquet
+  interpolate_max_gap_hours: 3
+
+pricing_changes: []   # e.g. ["2018-11-01T00:00:00-07:00"] once verified for the dataset in use

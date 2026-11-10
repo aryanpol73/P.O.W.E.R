@@ -147,7 +147,7 @@ Use `n_splits = 5`, expanding window, splitting only *inside* the 70% training b
 **Problem.** A KS-test comparing "recent load" with "training load" fires every few hours, because the recent window samples a different part of the daily and weekly cycle.
 
 **Upgrade.**
-- **Feature drift:** Population Stability Index (PSI) per feature, comparing the last 7 days with the training reference **within the same hour-of-week bucket**.
+- **Feature drift:** Population Stability Index (PSI) per feature on **hour-of-week-standardised values**: each value becomes `z = (x − μ_how)/σ_how` using the training reference's mean and std for its hour-of-week, then one PSI compares the last 7 days with the reference. (A separate PSI per bucket would be noise, because a 7-day window holds only one sample per hour-of-week.)
 - **Concept drift:** **Page-Hinkley** (or ADWIN) on the standardised residual stream `z_t = (y_t − ŷ_t)/σ̂_h`, plus rolling-WAPE ratio vs the validation WAPE.
 - Thresholds: PSI > 0.2 = drift; Page-Hinkley λ tuned so that the false-alarm rate on validation is < 1/month.
 
@@ -196,7 +196,7 @@ Add: the faculty **proposal** (Final Recommendation), **Diebold–Mariano** sign
 | Weather | Observed = oracle | Forecast-error augmentation + with/without ablation |
 | Data | ACN or "UrbanEV/Palo Alto" | Palo Alto site-level (primary) + ACN (OOD, idle study) |
 | Real-time | Replay + live weather mixed | `REPLAY` vs `LIVE_SHADOW` modes with week-aligned restamping |
-| Drift | KS on raw load | Hour-of-week PSI + Page-Hinkley on residuals |
+| Drift | KS on raw load | PSI on hour-of-week-standardised features + Page-Hinkley on residuals |
 | Alerts | > 85% of rating | q̂_0.95 vs `C_s = DF·P_port` (assumption) + hysteresis |
 | Infra | APScheduler in API, Redis, Mapbox | Separate worker, Postgres LISTEN/NOTIFY, MapLibre + deck.gl, ONNX LSTM |
 

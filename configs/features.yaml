@@ -1,0 +1,15 @@
+# Feature-builder settings. Feature definitions live in power_core.features.registry,
+# which is the single source of truth for names, anchors and model membership.
+horizons: [1, 24]          # inclusive range -> h = 1..24
+origin_stride_hours: 1     # use every k-th origin when building the direct training frame
+warmup_hours: 672          # origins earlier than first_seen + warmup are dropped (28-day level feature)
+ewma_alpha: 0.3
+cold_stress_c: 10.0
+heat_stress_c: 28.0
+rain_threshold_mm: 0.2
+weather_augmentation:
+  enabled: true
+  temp_sigma_base_c: 0.8
+  temp_sigma_per_hour_c: 0.05
+  precip_log_sigma: 0.3
+  seed: 42
