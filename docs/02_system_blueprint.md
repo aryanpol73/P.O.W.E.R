@@ -206,7 +206,7 @@ P.O.W.E.R/
 │           ├── metrics.py                # MAE RMSE WAPE MASE R2 MAPE+ pinball PICP MPIW Winkler
 │           ├── stats.py                  # Diebold-Mariano (HAC), bootstrap CIs
 │           ├── conformal.py              # CQR (Mondrian), split-conformal, ACI online updater
-│           ├── drift.py                  # PSI by hour-of-week, Page-Hinkley, ADWIN
+│           ├── drift.py                  # seasonal (hour-of-week standardised) PSI, Page-Hinkley
 │           ├── grid.py                   # load ratio, alert levels, hysteresis, reroute planner
 │           └── geo.py                    # haversine, kNN station neighbours
 ├── ml/                                   # offline pipeline (power_ml)
@@ -752,7 +752,7 @@ These are **deterministic, event-driven workers**, not LLM agents. The LLM is us
 | A2 | **Weather Sync Agent** | cron `:55` hourly + on start-up | Open-Meteo Forecast API, **one batched call for all station coordinates** (`hourly=temperature_2m,precipitation`, `forecast_days=2`) → `weather_hourly(source='forecast', issued_at=now)`. In REPLAY mode it reads the archive | HTTP retry with jitter (3×). Stale > 6 h → carry forward last vintage; > 24 h → climatology, `is_degraded` |
 | A3 | **Forecast Agent** | `hour_closed` | 672 h buffer + weather vintages (`issued_at ≤ T`) → `power_core.features.build_serving_frame` → all arena models → CQR → `model_predictions` (24 h × models × stations) + champion SHAP → `NOTIFY forecast_updated` | Model failure isolated per model. > 6 imputed hours → seasonal-naive fallback + `is_degraded` |
 | A4 | **Arena Accuracy Agent** | `hour_closed` | New actual `y_T` joined with every prediction whose `target_time = T` → `live_metrics` (rolling 24 h / 168 h) + **ACI** α update per model and bucket | — |
-| A5 | **Drift Detection Agent** | hourly after A4, plus a daily deep check | Hour-of-week PSI vs `reference_stats.parquet`; Page-Hinkley on standardised residuals; WAPE ratio vs validation WAPE; coverage gap → `drift_logs`, `NOTIFY drift_detected`, `action='recommend_retrain'` when ≥ 2 signals persist 24 h | — |
+| A5 | **Drift Detection Agent** | hourly after A4, plus a daily deep check | Hour-of-week-standardised PSI vs `reference_stats.parquet`; Page-Hinkley on standardised residuals; WAPE ratio vs validation WAPE; coverage gap → `drift_logs`, `NOTIFY drift_detected`, `action='recommend_retrain'` when ≥ 2 signals persist 24 h | — |
 | A6 | **Smart-Grid Alert & Reroute Agent** | `forecast_updated` | `load_ratio_q95 = q95 / transformer_kw`. **Hysteresis:** raise CRITICAL if ≥ 0.85 (WARNING ≥ 0.70); resolve when < 0.80 (< 0.65) for 2 consecutive origins. Then runs the reroute planner (below) → `alerts`, `reroute_recommendations`, Web Push for CRITICAL | `dedupe_key` prevents duplicates |
 | A7 | **Retrain (Champion–Challenger) Agent** | weekly cron or A5 recommendation (+ admin approval in UI) | Sliding window (last 365 days of buffer + history) retrains **LightGBM only** with frozen hyper-parameters → recalibrates CQR on the last 14 days → shadow-scores 7 days. **Promotion gate:** challenger WAPE ≤ 0.98 × champion **and** PICP ∈ [0.87, 0.93] **and** no station worse by > 10% → registry `status='champion'`, API hot-swaps | Gate fails → archived, logged |
 | A8 | **Station Discovery Agent** | daily | OpenChargeMap (`/v3/poi`, bounding box, API key) → upsert `stations(source='openchargemap', is_modeled=false)` → cold-start prior forecasts (grey pins) | Never affects arena metrics |

@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install Python 3.12 and locked dependencies
+        run: uv sync --locked --python 3.12
+      - name: Lint
+        run: uv run ruff check .
+      - name: Leakage tests
+        run: uv run pytest -q -m leakage
+      - name: All tests
+        run: uv run pytest -q

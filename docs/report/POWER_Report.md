@@ -497,7 +497,7 @@ A simulation clock drives the stream in two modes. **REPLAY** walks through the 
 | Weather Sync | Batched Open-Meteo fetch, vintage storage, staleness fallback |
 | Forecast | Features → all models → CQR → predictions + SHAP |
 | Arena Accuracy | Joins actuals with past predictions; live metrics; ACI |
-| Drift Detection | Hour-of-week PSI, Page-Hinkley on residuals, coverage monitoring |
+| Drift Detection | PSI on hour-of-week-standardised features, Page-Hinkley on residuals, coverage monitoring |
 | Smart-Grid Alert & Reroute | Thresholds with hysteresis; greedy headroom-aware reroute; Web Push |
 | Retrain (champion–challenger) | Sliding-window retrain; promotion gate on WAPE and coverage |
 | Station Discovery | OpenChargeMap context stations with cold-start priors |
@@ -696,7 +696,7 @@ Akiba, T., Sano, S., Yanase, T., Ohta, T., & Koyama, M. (2019). Optuna: A next-g
 | Where do transformer ratings come from? | They are not public; synthetic DF × rated kW, with sensitivity analysis |
 | How is real time achieved without real chargers? | Replay of held-out data on a simulation clock (true out-of-sample) and live-shadow mode with live weather; optional OCPP emulation |
 | What if a meter tick is missing? | Seasonal imputation with flag; > 6 h gap → seasonal-naive fallback and degraded status |
-| How do you detect drift? | Hour-of-week PSI on features, Page-Hinkley on residuals, coverage monitoring; COVID case study |
+| How do you detect drift? | PSI on hour-of-week-standardised features, Page-Hinkley on residuals, coverage monitoring; COVID case study |
 | What are the ethical risks? | Location privacy; equity bias from censored demand; asymmetric harm of under-forecasting |
 
 # Appendix E. Rubric Self-Assessment Checklist

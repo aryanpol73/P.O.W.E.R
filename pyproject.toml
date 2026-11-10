@@ -1,0 +1,50 @@
+[project]
+name = "power-workspace"
+version = "0.1.0"
+description = "P.O.W.E.R. monorepo root (uv workspace)"
+requires-python = ">=3.12,<3.13"
+dependencies = ["power-core", "power-ml"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/power_core", "ml"]
+
+[tool.uv.sources]
+power-core = { workspace = true }
+power-ml = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pandas-stubs>=2.2",
+    "types-PyYAML>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/power_core/tests", "ml/tests"]
+markers = ["leakage: tests that prove no future information reaches features or splits"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "NPY", "PD002"]
+ignore = ["N803", "N806"]  # X, T, N_s are conventional in ML/maths code
+
+[tool.ruff.lint.per-file-ignores]
+"ml/src/power_ml/cli.py" = ["B008"]  # typer.Option() defaults are the documented Typer idiom
+
+[tool.ruff.lint.isort]
+known-first-party = ["power_core", "power_ml"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true

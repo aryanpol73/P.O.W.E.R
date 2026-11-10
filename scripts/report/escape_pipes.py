@@ -1,12 +1,18 @@
-import io
+"""Escape '|' inside inline-code spans of Markdown table rows so tables don't split.
+
+Usage: python scripts/report/escape_pipes.py docs/*.md
+"""
+
 import re
 import sys
+from pathlib import Path
 
 PIPE = re.compile(r"(?<!\\)\|")
 CODE = re.compile(r"`[^`]*`")
 
 for f in sys.argv[1:]:
-    lines = io.open(f, encoding="utf-8").read().split("\n")
+    path = Path(f)
+    lines = path.read_text(encoding="utf-8").split("\n")
     n = 0
     out = []
     in_fence = False
@@ -19,5 +25,5 @@ for f in sys.argv[1:]:
                 n += 1
             line = new
         out.append(line)
-    io.open(f, "w", encoding="utf-8", newline="\n").write("\n".join(out))
+    path.write_text("\n".join(out), encoding="utf-8", newline="\n")
     print(f, n, "rows fixed")

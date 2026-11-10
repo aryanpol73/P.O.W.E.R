@@ -30,3 +30,4 @@ reports/figures/*.png
 .DS_Store
 Thumbs.db
 ~$*
+reports/*.parquet
