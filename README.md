@@ -172,18 +172,9 @@ Try: *"Which stations are at risk in the next 24 hours, and what drives the peak
 
 Session and user identifiers are dropped or hashed at ingestion; no MAC addresses, user IDs or zip codes are stored. Forecasts are **decision support**, not autonomous grid control. Reroute suggestions are advisory and bounded by assumed driver willingness. The model learns from where chargers already exist, so planning use must be paired with equity analysis (see the report, Chapter 10).
 
-## Team & contributions
-
-| Member | Role | Owned modules |
-|---|---|---|
-| _Name 1_ | Data & feature engineering | `ml/ingest`, `power_core.features`, data card |
-| _Name 2_ | Modelling & evaluation | `ml/models`, `tune`, `evaluate`, `ablations` |
-| _Name 3_ | Backend & real-time | `services/api`, `services/worker`, DB |
-| _Name 4_ | Frontend, XAI & MCP | `apps/web`, `ml/explain`, `services/mcp` |
-
 ## Citation / references
 
-Lee, Li & Low (2019) ACN-Data; Amezquita et al. (2024) *Energies* 17:3396; Zhu et al. (2019) *Energies* 12:2692; Skala et al. (2023) *Energies* 16:4093; Shern et al. (2024) *Energies* 17:5772; Adnane et al. (2023) *Energies* 16:4897; Romano et al. (2019) CQR; Gibbs & Candès (2021) ACI.
+Lee, Li & Low (2019) ACN-Data; Amezquita et al. (2024) *Energies* 17:3396; Zhu et al. (2019) *Energies* 12:2692; Skala et al. (2023) *Energies* 16:4093; Shern et al. (2024) *Energies* 17:5772; Adnane et al. (2023) *Energies* 16:4897; Romano et al. (2019) CQR; Gibbs & Candès (2021) ACI
 
 ## License
 
