@@ -314,10 +314,10 @@
       "picp_ood": 0.952
     },
     "M5_lstm": {
-      "wape_test": 0.5233,
-      "wape_ood": 1.323,
-      "picp_test": 0.8801,
-      "picp_ood": 0.9667
+      "wape_test": 0.5099,
+      "wape_ood": 1.2823,
+      "picp_test": 0.8771,
+      "picp_ood": 0.9708
     },
     "E1_ensemble": {
       "wape_test": 0.4885,

@@ -1,3 +1,5 @@
 2026-11-10T15:26:15+00:00	models=2026.11.0@9d4809deeb	rows=786528
 2026-11-10T16:02:22+00:00	models=2026.11.0@9d4809deeb	rows=786528
 # 2nd test run above: adds M5_lstm (trained after the first test run, tuned on validation only); other models' artefacts unchanged
+2026-11-13T15:03:17+00:00	models=2026.11.0@9d4809deeb	rows=786528
+# 3rd test run above: M5_lstm retrained with a softplus output link (ReLU had killed the h=21 output; bug found from per-horizon test errors, fix chosen without tuning on test); other models' artefacts unchanged
