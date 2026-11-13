@@ -50,7 +50,7 @@ def twin(power_root: Path, tmp_path: Path):  # type: ignore[no-untyped-def]
     url = f"sqlite+aiosqlite:///{(tmp_path / 'twin.db').as_posix()}"
     seed(make_sync_engine(url), power_root, "palo_alto", dep, weather_fetcher=_fake_weather)
     settings = Settings(DATABASE_URL=url, POWER_ROOT=power_root, POWER_EMBEDDED_WORKER=False, ADMIN_TOKEN="secret",
-                        POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="twin")
+                        POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="twin", POWER_DISCOVERY=False)
     with TestClient(create_app(settings)) as c:
         c.headers.update({"Authorization": "Bearer secret"})
         yield c

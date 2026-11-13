@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Activity, BarChart3, FlaskConical, LayoutDashboard, Lightbulb, Zap } from "lucide-react";
+import { Activity, BarChart3, Bot, FlaskConical, LayoutDashboard, Lightbulb, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -17,6 +17,7 @@ const NAV = [
   { href: "/arena", label: "Model Arena", icon: BarChart3 },
   { href: "/simulator", label: "What-If", icon: FlaskConical },
   { href: "/insights", label: "Insights", icon: Lightbulb },
+  { href: "/ops", label: "Ops", icon: Bot },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -72,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 md:px-6">{children}</main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-surface md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-border bg-surface md:hidden">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

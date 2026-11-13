@@ -94,6 +94,7 @@ async def health(request: Request, s: AsyncSession = Db) -> dict[str, Any]:
     return {
         "status": "ok" if not request.app.state.sim.last_error else "degraded",
         "model_version": eng.version,
+        "live_champion_version": eng.version_of(eng.champion),
         "champion": eng.champion,
         "models": sorted(eng.models) + [eng.ensemble.name],
         "sim": {"mode": st.mode, "sim_now": _iso(st.sim_now), "paused": st.paused} if st else None,
@@ -107,7 +108,9 @@ async def deployment(request: Request) -> dict[str, Any]:
     """Which city the live console serves, and how that relates to the data the models were trained on."""
     eng = request.app.state.engine
     if eng.deployment is None:
-        return {"name": eng.source, "display_name": eng.source, "timezone": eng.tz, "is_twin": False, "model_trained_on": eng.source}
+        return {
+            "name": eng.source, "display_name": eng.source, "timezone": eng.tz, "is_twin": False, "model_trained_on": eng.source
+        }
     return eng.deployment.public()
 
 
@@ -207,7 +210,7 @@ async def station_forecast(
     return {
         "station_id": station_id,
         "model": name,
-        "model_version": eng.version,
+        "model_version": rows[0].model_version,  # the version that made these forecasts (live challenger tag)
         "forecast_origin": _iso(T),
         "interval_level": eng.tcfg.interval_level,
         "transformer_kw": round(st.transformer_kw, 2),

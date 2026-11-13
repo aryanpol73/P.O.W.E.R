@@ -183,14 +183,47 @@ make lint         # ruff, mypy, eslint, tsc
 
 ## Using the MCP server
 
-Add to Claude Desktop / Claude Code MCP config:
+`services/mcp` is a read-only MCP server (MCP Python SDK v2) over the REST API, so an assistant quotes exactly the
+numbers the console shows. Start the API first (`uv run power-api serve --port 8011`), then add to Claude
+Desktop / Claude Code:
 ```json
 { "mcpServers": { "power": {
   "command": "uv",
-  "args": ["run", "--directory", "services/mcp", "power-mcp", "--transport", "stdio"],
-  "env": { "POWER_API_URL": "http://localhost:8000", "POWER_API_TOKEN": "<MCP_READONLY_TOKEN>" } } } }
+  "args": ["run", "--directory", "<repo>", "power-mcp"],
+  "env": { "POWER_API_URL": "http://127.0.0.1:8011" } } } }
 ```
-Try: *"Which stations are at risk in the next 24 hours, and what drives the peak at the worst one?"* or *"Simulate a +8 °C heatwave across the network."*
+For HTTP clients, run `uv run power-mcp --transport http`, which serves `http://127.0.0.1:8765/mcp`.
+
+| Tool | What it returns |
+|---|---|
+| `list_stations` | sites, ports, assumed transformer kW, current risk (filter by risk) |
+| `get_network_status` | KPI ribbon, simulation clock, deployment (city, time zone, twin), live champion |
+| `get_station_forecast` | next 1–24 h: q50, calibrated 90% interval, risk; the peak hour |
+| `explain_peak_shap` | TreeSHAP drivers in kWh that add up to the forecast |
+| `simulate_weather_shock` | what-if: baseline vs scenario peaks, sites at risk, out-of-range flags |
+| `compare_models` | test-set or rolling live leaderboard |
+| `get_alerts` | open/all alerts plus reroute suggestions |
+| `get_drift_report` | latest drift signals and whether a retrain is recommended |
+| `get_agent_status` | background agents, buffer freshness, live champion |
+
+Stations can be named loosely ("Westend", "deccan"). Resources: `power://datacard`, `power://deployment`,
+`power://models/leaderboard`, `power://stations/{id}`. Prompts: `grid_briefing`, `viva_explainer`.
+Guard-rails: read-only, 30 calls/min, bounded inputs, and identifying fields are scrubbed.
+
+Try: *"Which Pune sites are at risk in the next 12 hours, and what drives the peak at the worst one?"* or
+*"Simulate a +8 °C heatwave across the network. Is that inside the training range?"*
+
+## Background agents (Ops page)
+
+| Agent | Trigger | What it does |
+|---|---|---|
+| A1/A3/A6 pipeline | every simulated hour | replay telemetry, forecast with every model, alerts with hysteresis, reroutes |
+| A5 drift | each local midnight, or *Check now* | CUSUM on daily forecast bias (vs validation), seasonal PSI vs training demand, 90% coverage, live/test WAPE; retrain recommended when 2 or more fire |
+| A7 retrain | operator (*Retrain now*) | LightGBM quantile on the last 365 observed days, CQR recalibrated on the next 14 and both models shadow-scored on the final 7, which neither saw; promoted only if WAPE ≤ 0.98 × champion, PICP in [0.87, 0.93] and no site more than 10% worse. Frozen test artefacts are never changed; live forecasts carry a `+rt…` version tag; roll back with one click |
+| A8 discovery | start-up (at most daily), or *Discover now* | other public chargers in the city from OpenStreetMap, shown as grey unforecast pins |
+
+`GET /api/v1/agents/status` is the watchdog view (agents, buffer lag, last error); `GET /api/v1/drift` returns
+the drift history.
 
 ## Viva demo flow (≈ 8 minutes)
 

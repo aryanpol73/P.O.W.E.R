@@ -90,7 +90,7 @@ export function StationMap({ snapshot, onSelect }: { snapshot: Snapshot | undefi
         },
       });
       m.addLayer({
-        id: "labels", type: "symbol", source: "stations",
+        id: "labels", type: "symbol", source: "stations", filter: ["==", ["get", "modeled"], true], // grey context pins stay unlabelled
         layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, 1.9], "text-font": ["Noto Sans Regular"] },
         paint: { "text-color": dark ? "#e6ecf5" : "#1b2a3d", "text-halo-color": dark ? "#0b1220" : "#ffffff", "text-halo-width": 1.4 },
       });

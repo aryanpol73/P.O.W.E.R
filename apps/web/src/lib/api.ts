@@ -21,6 +21,66 @@ export interface Deployment {
   note?: string;
 }
 
+export interface AgentInfo {
+  description: string;
+  runs: number;
+  last_key: string | null;
+  last_status: string | null;
+  last_finished_at: string | null;
+  last_details: Record<string, unknown> | null;
+  in_progress?: boolean;
+}
+
+export interface AgentsStatus {
+  sim: { mode: string; sim_now: string; paused: boolean } | null;
+  last_error: string | null;
+  buffer: { newest_hour: string | null; lag_hours: number | null; healthy: boolean };
+  weather_forecast_issued_at: string | null;
+  live_champion: { model: string; version: string; run_id: string | null; frozen_version: string };
+  ws_subscribers: number;
+  agents: Record<string, AgentInfo>;
+}
+
+export interface DriftItem {
+  detected_at: string;
+  kind: string;
+  statistic: number;
+  threshold: number;
+  is_drift: boolean;
+  details: Record<string, unknown> | null;
+}
+
+export interface DriftReport {
+  window_days: number;
+  checks: number;
+  latest_at: string | null;
+  latest: DriftItem[];
+  recommend_retrain: boolean;
+  history: DriftItem[];
+}
+
+export interface GateCheck {
+  ok: boolean;
+  rule: string;
+  challenger?: number;
+  champion?: number;
+  worst_regression?: number;
+}
+
+export interface RetrainRun {
+  run_id: string;
+  as_of: string;
+  passed: boolean;
+  promoted: boolean;
+  active?: boolean;
+  gate: Record<string, GateCheck>;
+  shadow: { challenger: { wape: number; picp: number }; champion: { wape: number; picp: number }; rows: number };
+  windows: Record<string, string>;
+  train_rows: number;
+  seconds: number;
+  saved_at?: string;
+}
+
 export interface Health {
   status: string;
   model_version: string;
@@ -256,4 +316,12 @@ export const api = {
     admin<SimState | Record<string, unknown>>("sim/control", body),
   ack: (id: number) => admin<{ alert_id: number; status: string }>(`alerts/${id}/ack`),
   figure: (name: string) => `${API_URL}/figures/${name}`,
+  agents: () => get<AgentsStatus>("/agents/status"),
+  drift: (days = 14) => get<DriftReport>(`/drift?days=${days}`),
+  retrainRuns: () => get<{ active: string | null; runs: RetrainRun[] }>("/agents/retrain/runs"),
+  runDrift: () => admin<Record<string, unknown>>("agents/drift/run"),
+  runDiscovery: () => admin<Record<string, unknown>>("agents/discovery/run"),
+  startRetrain: (promote: boolean) => admin<{ started: boolean }>("agents/retrain", { promote }),
+  rollback: () => admin<Record<string, unknown>>("agents/retrain/rollback"),
+  activate: (id: string) => admin<Record<string, unknown>>(`agents/retrain/${id}/activate`),
 };

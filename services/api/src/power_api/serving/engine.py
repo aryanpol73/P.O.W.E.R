@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from power_api.serving.registry import LiveRegistry
 from power_core.config import data_config, feature_config, threshold_config
 from power_core.conformal import calibrator_from_dict
 from power_core.deployment import Deployment
@@ -57,6 +58,30 @@ class ServingEngine:
         for m in self.models.values():  # the LSTM builds its own calendar inputs
             if hasattr(m, "tz"):
                 m.tz, m.holidays = self.tz, self.holidays
+        # Champion-challenger: keep the frozen champion so a promotion can always be rolled back.
+        self.registry = LiveRegistry(root, self.version)
+        self._frozen = (self.models.get(QUANTILE), self.calibrators.get(f"{QUANTILE}_cqr"))
+        self.live_run: str | None = None
+        active = self.registry.read().get("active")
+        if active:
+            try:
+                self.promote(active, *self.registry.load(active))
+            except (FileNotFoundError, KeyError):
+                self.live_run = None
+
+    # ------------------------------------------------------------------ live champion
+    def promote(self, run_id: str, model: Any, cqr: Any) -> None:
+        """Hot-swap the live champion (quantile LightGBM + its CQR). Frozen artefacts are untouched."""
+        self.models[QUANTILE] = model
+        self.calibrators[f"{QUANTILE}_cqr"] = cqr
+        self.live_run = run_id
+
+    def rollback(self) -> None:
+        self.models[QUANTILE], self.calibrators[f"{QUANTILE}_cqr"] = self._frozen
+        self.live_run = None
+
+    def version_of(self, model_name: str) -> str:
+        return f"{self.version}+{self.live_run}" if (self.live_run and model_name == QUANTILE) else self.version
 
     # ------------------------------------------------------------------ deployment ids
     def _to_model(self, panel: pd.DataFrame) -> pd.DataFrame:
@@ -173,7 +198,10 @@ class ServingEngine:
         out = pd.concat(rows, ignore_index=True)
         expl = self.explain(frame) if explain else pd.DataFrame()
         hist = panel.loc[panel["ts"] <= origin]
-        degraded = {self._site_id(s): bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False for s, g in hist.groupby("station_id")}
+        degraded = {
+            self._site_id(s): bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False
+            for s, g in hist.groupby("station_id")
+        }
         return Forecast(origin, out, expl, (time.perf_counter() - t0) * 1000, degraded)
 
     def explain(self, frame: pd.DataFrame, top_k: int = 8) -> pd.DataFrame:

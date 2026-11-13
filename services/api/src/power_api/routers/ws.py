@@ -8,7 +8,7 @@ import contextlib
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
-CHANNELS = {"telemetry", "forecast", "alerts", "drift", "sim"}
+CHANNELS = {"telemetry", "forecast", "alerts", "drift", "sim", "ops"}
 
 
 @router.websocket("/ws/stream")

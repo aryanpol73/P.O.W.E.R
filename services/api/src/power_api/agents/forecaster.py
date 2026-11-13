@@ -30,7 +30,7 @@ async def run(session: AsyncSession, engine: ServingEngine, T: datetime, history
             forecast_origin=T,
             horizon_h=int(r.h),
             target_time=to_db(r.target_time),
-            model_version=engine.version,
+            model_version=engine.version_of(r.model),
             y_mean=float(r.y_mean),
             q05=float(r.q05),
             q50=float(r.q50),

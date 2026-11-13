@@ -4,7 +4,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const API = (process.env.POWER_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-const ALLOWED = [/^sim\/(control|tick)$/, /^alerts\/\d+\/ack$/];
+const ALLOWED = [
+  /^sim\/(control|tick)$/,
+  /^alerts\/\d+\/ack$/,
+  /^agents\/(drift\/run|discovery\/run|retrain|retrain\/rollback|retrain\/[A-Za-z0-9]+\/activate)$/,
+];
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;

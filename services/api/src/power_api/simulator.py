@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from power_api import repo
 from power_api.agents import alerts as alerts_mod
 from power_api.agents import base, forecaster, replay
+from power_api.agents import drift as drift_agent
 from power_api.agents import weather as weather_agent
 from power_api.bus import InProcessBus
 from power_api.db import models as m
@@ -52,7 +53,8 @@ class Simulator:
         p = self.settings.repo_root / "data" / "processed" / f"splits_{self.settings.source}.json"
         b = SplitBounds.from_dict(json.loads(p.read_text(encoding="utf-8")))
         dep = self.engine.deployment  # the deployed timeline is the training one moved to local wall-clock time
-        return to_db(dep.retime_one(b.test_start) if dep else b.test_start)  # the buffer is pre-filled with the (earlier, observed) history
+        # The buffer is pre-filled with the (earlier, observed) history.
+        return to_db(dep.retime_one(b.test_start) if dep else b.test_start)
 
     async def ensure_state(self) -> m.SimState:
         async with self.maker() as s:
@@ -109,6 +111,8 @@ class Simulator:
             res = await self.alerts.run(s, T, forecaster.champion_frame(fc, self.engine.champion))
             await base.record(s, "pipeline", key, "ok", {"latency_ms": round(fc.latency_ms, 1), "alerts": len(res["raised"])})
             await s.commit()
+        if from_db(T).tz_convert(self.engine.tz).hour == 0:  # A5 drift check once per local day
+            await self.run_drift(T)
         origin = from_db(T).isoformat()
         await self.bus.publish("forecast", "forecast.updated", {"forecast_origin": origin, "latency_ms": round(fc.latency_ms, 1)})
         for a in res["raised"]:
@@ -118,6 +122,22 @@ class Simulator:
         if res["reroutes"]:
             await self.bus.publish("alerts", "reroute.updated", {"count": len(res["reroutes"])})
         return res
+
+    async def run_drift(self, T: datetime | None = None) -> dict[str, Any]:
+        async with self.maker() as s:
+            if T is None:
+                st = await repo.sim_state(s)
+                if st is None:
+                    raise RuntimeError("simulator not initialised")
+                T = st.sim_now
+            key = T.isoformat()
+            rep = await drift_agent.run(s, self.engine, T, threshold_config(self.settings.repo_root).drift)
+            await base.record(s, "drift", key, "ok", rep)
+            await s.commit()
+        if rep["n_drift"]:
+            await self.bus.publish("drift", "drift.detected", {"as_of": rep["as_of"], "signals": [
+                k for k, v in rep["signals"].items() if v["is_drift"]], "recommend_retrain": rep["recommend_retrain"]})
+        return rep
 
     async def step(self) -> dict[str, Any]:
         async with self._lock:

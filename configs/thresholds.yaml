@@ -33,3 +33,20 @@ drift:
   psi_threshold: 0.20
   page_hinkley_delta: 0.05
   page_hinkley_lambda: 50.0
+  # A5 online drift agent (runs at each local midnight). Same detectors as the COVID stress test.
+  cusum_k: 0.5                  # daily network bias, standardised by the validation reference
+  cusum_h: 5.0
+  window_hours: 168             # rolling window for PSI, coverage and WAPE ratio
+  coverage_min: 0.85            # champion 90% interval coverage below this = signal
+  wape_ratio_max: 1.25          # rolling champion WAPE / test WAPE above this = signal
+  min_signals_for_retrain: 2
+
+retrain:                        # A7 champion-challenger (LightGBM quantile only, frozen hyper-parameters)
+  window_days: 365
+  calib_days: 14
+  shadow_days: 7
+  embargo_hours: 24
+  wape_gain: 0.98
+  picp_low: 0.87
+  picp_high: 0.93
+  max_station_regression: 0.10

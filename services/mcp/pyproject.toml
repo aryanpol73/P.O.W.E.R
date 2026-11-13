@@ -1,0 +1,20 @@
+[project]
+name = "power-mcp"
+version = "0.1.0"
+description = "P.O.W.E.R. MCP server: read-only grid tools for AI assistants, a thin adapter over the REST API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mcp>=2.3,<3",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+]
+
+[project.scripts]
+power-mcp = "power_mcp.server:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/power_mcp"]

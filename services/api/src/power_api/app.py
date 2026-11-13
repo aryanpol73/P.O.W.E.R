@@ -12,15 +12,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 
+from power_api.agents import base as agent_base
+from power_api.agents import discovery as discovery_agent
 from power_api.bus import InProcessBus
 from power_api.db import models as m
-from power_api.db.session import make_async_engine, sessionmaker_for
-from power_api.routers import api, ws
+from power_api.db.session import make_async_engine, sessionmaker_for, utcnow
+from power_api.routers import agents, api, ws
 from power_api.serving.engine import ServingEngine
 from power_api.settings import Settings, get_settings
 from power_api.simulator import Simulator
 
 log = logging.getLogger("power.api")
+
+
+async def _discover_once(maker) -> None:  # type: ignore[no-untyped-def]
+    """A8 at start-up, skipped when a successful run finished in the last 24 hours (wall clock)."""
+    async with maker() as s:
+        last = (await s.execute(
+            select(func.max(m.AgentRun.finished_at)).where(m.AgentRun.agent == "discovery", m.AgentRun.status == "ok")
+        )).scalar()
+        if last is not None and (utcnow() - last).total_seconds() < 86_400:
+            return
+        key = f"startup-{utcnow().isoformat(timespec='seconds')}"
+        try:
+            res = await discovery_agent.run(s)
+            await agent_base.record(s, "discovery", key, "ok", res)
+            log.info("discovery: %s", res)
+        except Exception as exc:  # noqa: BLE001 - optional enrichment; never blocks the console
+            await s.rollback()
+            await agent_base.record(s, "discovery", key, "error", {"error": str(exc)})
+            log.warning("discovery failed: %s", exc)
+        await s.commit()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -48,11 +70,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.embedded_worker:
             sim.start()
         app.state.settings, app.state.maker, app.state.engine, app.state.bus, app.state.sim = settings, maker, engine, bus, sim
+        app.state.agent_tasks = {}
+        if settings.discovery_on_start and engine.deployment is not None:
+            app.state.agent_tasks["discovery"] = asyncio.create_task(_discover_once(maker), name="power-discovery")
         log.info("P.O.W.E.R. API ready: models %s, champion %s, db %s", engine.version, engine.champion, db.dialect.name)
         try:
             yield
         finally:
             await sim.stop()
+            for t in app.state.agent_tasks.values():
+                t.cancel()
             await db.dispose()
 
     app = FastAPI(
@@ -68,6 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api.router, prefix="/api/v1")
+    app.include_router(agents.router, prefix="/api/v1")
     app.include_router(ws.router)
     figures = settings.repo_root / "reports" / "figures"
     if figures.is_dir():  # report figures (SHAP, error analysis, stress test) for the Insights page

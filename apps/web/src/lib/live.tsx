@@ -32,6 +32,8 @@ const INVALIDATE: Record<string, string[][]> = {
   "sim.control": [["sim"]],
   "sim.reset": [["sim"], ["kpis"], ["snapshot"], ["stations"], ["forecast"], ["alerts"], ["arena"], ["explain"]],
   "sim.end": [["sim"]],
+  "drift.detected": [["drift"], ["agents"]],
+  "agent.status": [["agents"], ["retrain-runs"], ["forecast"]],
 };
 
 export function LiveProvider({ children }: { children: ReactNode }) {

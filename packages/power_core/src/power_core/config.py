@@ -150,6 +150,25 @@ class DriftCfg(BaseModel):
     psi_threshold: float = 0.20
     page_hinkley_delta: float = 0.05
     page_hinkley_lambda: float = 50.0
+    cusum_k: float = 0.5
+    cusum_h: float = 5.0
+    window_hours: int = 168
+    coverage_min: float = 0.85
+    wape_ratio_max: float = 1.25
+    min_signals_for_retrain: int = 2
+
+
+class RetrainCfg(BaseModel):
+    """A7 champion-challenger: train on a sliding window, calibrate, shadow-score, then gate."""
+
+    window_days: int = 365
+    calib_days: int = 14
+    shadow_days: int = 7
+    embargo_hours: int = 24
+    wape_gain: float = 0.98            # challenger WAPE <= 0.98 x champion WAPE on the shadow window
+    picp_low: float = 0.87
+    picp_high: float = 0.93
+    max_station_regression: float = 0.10
 
 
 class ThresholdConfig(BaseModel):
@@ -161,6 +180,7 @@ class ThresholdConfig(BaseModel):
     reroute: RerouteCfg = Field(default_factory=RerouteCfg)
     aci: AciCfg = Field(default_factory=AciCfg)
     drift: DriftCfg = Field(default_factory=DriftCfg)
+    retrain: RetrainCfg = Field(default_factory=RetrainCfg)
 
 
 def _load(name: str, root: Path | None) -> dict[str, Any]:
