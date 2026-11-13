@@ -6,7 +6,7 @@ import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
 import { useState } from "react";
 
 import { api } from "@/lib/api";
-import { fmtTime } from "@/lib/format";
+import { fmtTime, TZ_LABEL } from "@/lib/format";
 import { useLive } from "@/lib/live";
 
 const SPEEDS = [6, 12, 30, 60];
@@ -31,7 +31,7 @@ export function SimControls() {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 md:px-6">
       <div className="min-w-0">
         <div className="text-[11px] uppercase tracking-wider text-muted">
-          {s?.mode === "LIVE_SHADOW" ? "Live-shadow" : "Replay"} clock · forecast origin (Palo Alto time)
+          {s?.mode === "LIVE_SHADOW" ? "Live-shadow" : "Replay"} clock · forecast origin ({TZ_LABEL})
         </div>
         <div className="tabular truncate text-base font-semibold">{s ? fmtTime(s.sim_now) : sim.isError ? "API unreachable" : "…"}</div>
       </div>

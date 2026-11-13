@@ -46,7 +46,12 @@ export function KpiRibbon() {
         tone={k?.risk_status}
         sub={k ? `${k.stations_by_risk.CRITICAL} critical · ${k.stations_by_risk.WARNING} warning` : undefined}
       />
-      <Tile wide label="Mode" value={k?.sim_mode === "LIVE_SHADOW" ? "Live-shadow" : "Replay"} sub="held-out test period, Sep 2019 – Feb 2020" />
+      <Tile
+        wide
+        label="Mode"
+        value={k?.sim_mode === "LIVE_SHADOW" ? "Live-shadow" : "Replay"}
+        sub="Pune pilot twin · replays held-out demand, never seen in training"
+      />
     </div>
   );
 }

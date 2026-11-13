@@ -11,12 +11,13 @@ import { AlertFeed } from "@/components/AlertFeed";
 import { KpiRibbon } from "@/components/KpiRibbon";
 import { StationMap } from "@/components/StationMap";
 import { api } from "@/lib/api";
-import { fmtNum, fmtPct, fmtTime, RISK_COLOR } from "@/lib/format";
+import { fmtNum, fmtPct, fmtTime, prettyStation, RISK_COLOR } from "@/lib/format";
 
 export default function CommandCenter() {
   const router = useRouter();
   const [h, setH] = useState(1);
   const snap = useQuery({ queryKey: ["snapshot", h], queryFn: () => api.snapshot(h), placeholderData: keepPreviousData });
+  useQuery({ queryKey: ["stations"], queryFn: api.stations }); // display names for reroute text
   const modeled = snap.data?.stations.filter((s) => s.is_modeled).sort((a, b) => (b.load_ratio_q95 ?? 0) - (a.load_ratio_q95 ?? 0)) ?? [];
 
   return (
@@ -53,7 +54,7 @@ export default function CommandCenter() {
               {snap.data.reroutes.map((r, i) => (
                 <span key={i}>
                   {i > 0 && " · "}
-                  {r.from.replace("PA_", "")} → {r.to.replace("PA_", "")} {fmtNum(r.shifted_kwh)} kWh ({fmtNum(r.distance_km, 2)} km)
+                  {prettyStation(r.from)} → {prettyStation(r.to)} {fmtNum(r.shifted_kwh)} kWh ({fmtNum(r.distance_km, 2)} km)
                 </span>
               ))}
             </div>

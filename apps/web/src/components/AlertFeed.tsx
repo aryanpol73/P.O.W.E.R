@@ -11,6 +11,7 @@ import { fmtTime, prettyStation } from "@/lib/format";
 export function AlertFeed() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["alerts"], queryFn: () => api.alerts("open") });
+  useQuery({ queryKey: ["stations"], queryFn: api.stations }); // re-render once display names are registered
   const ack = useMutation({ mutationFn: api.ack, onSuccess: () => qc.invalidateQueries({ queryKey: ["alerts"] }) });
   return (
     <div className="card flex min-h-0 flex-col">

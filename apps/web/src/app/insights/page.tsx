@@ -57,7 +57,7 @@ export default function InsightsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
           <h2 className="text-sm font-semibold">Top drivers (mean |SHAP|, kWh)</h2>
-          <p className="mb-2 text-xs text-muted">Recurring weekly and daily patterns dominate; weather barely matters in mild Palo Alto.</p>
+          <p className="mb-2 text-xs text-muted">Recurring weekly and daily patterns dominate; weather barely mattered in the mild training climate (Palo Alto, USA).</p>
           <ResponsiveContainer width="100%" height={340}>
             <BarChart data={top} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />

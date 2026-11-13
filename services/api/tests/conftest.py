@@ -96,7 +96,7 @@ def client(power_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  
     url = f"sqlite+aiosqlite:///{(tmp_path / 'power.db').as_posix()}"
     seed(make_sync_engine(url), power_root, "palo_alto")
     settings = Settings(DATABASE_URL=url, POWER_ROOT=power_root, POWER_EMBEDDED_WORKER=False, ADMIN_TOKEN="secret",
-                        POWER_HISTORY_HOURS=720)
+                        POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="none")
     with TestClient(create_app(settings)) as c:
         c.headers.update({"Authorization": "Bearer secret"})
         yield c

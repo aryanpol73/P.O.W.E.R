@@ -43,12 +43,16 @@ class Simulator:
         self.last_error: str | None = None
 
     # ------------------------------------------------------------------ setup
+    def _grid_minute(self) -> int:
+        return self.engine.deployment.grid_minute if self.engine.deployment else 0
+
     def default_start(self) -> datetime:
         if self.settings.sim_start:
             return to_db(self.settings.sim_start)
         p = self.settings.repo_root / "data" / "processed" / f"splits_{self.settings.source}.json"
         b = SplitBounds.from_dict(json.loads(p.read_text(encoding="utf-8")))
-        return to_db(b.test_start)  # the buffer is pre-filled with the (earlier, observed) history
+        dep = self.engine.deployment  # the deployed timeline is the training one moved to local wall-clock time
+        return to_db(dep.retime_one(b.test_start) if dep else b.test_start)  # the buffer is pre-filled with the (earlier, observed) history
 
     async def ensure_state(self) -> m.SimState:
         async with self.maker() as s:
@@ -83,7 +87,11 @@ class Simulator:
             self.alerts = alerts_mod.AlertAgent(threshold_config(self.settings.repo_root))
             if mode == "LIVE_SHADOW":
                 async with self.maker() as s:
-                    await weather_agent.sync(s, past_days=min(92, self.settings.history_hours // 24 + 1))
+                    await weather_agent.sync(
+                        s,
+                        past_days=min(92, self.settings.history_hours // 24 + 1),
+                        grid_minute=self._grid_minute(),
+                    )
                     await s.commit()
             await self._process(T)
         await self.bus.publish("sim", "sim.reset", {"sim_now": from_db(T).isoformat(), "mode": mode})
@@ -125,7 +133,7 @@ class Simulator:
                     await self.bus.publish("sim", "sim.end", {"sim_now": from_db(st.sim_now).isoformat()})
                     return {"end_of_data": True}
                 if st.mode == "LIVE_SHADOW" and T.hour == 0:
-                    await weather_agent.sync(s)
+                    await weather_agent.sync(s, grid_minute=self._grid_minute())
                 st.sim_now = T
                 await s.commit()
             await self.bus.publish("telemetry", "telemetry.tick", {"ts": from_db(T).isoformat(), "rows": n})

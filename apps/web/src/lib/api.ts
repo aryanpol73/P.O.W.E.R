@@ -1,10 +1,25 @@
 // Typed client for the P.O.W.E.R. API (services/api). Reads go straight to the API; state-changing
 // admin calls go through /api/admin/* so the admin token stays on the server.
 
+import { registerStationNames } from "./format";
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 export const WS_URL = API_URL.replace(/^http/, "ws") + "/ws/stream";
 
 export type Risk = "NORMAL" | "WARNING" | "CRITICAL";
+
+export interface Deployment {
+  name: string;
+  display_name: string;
+  city?: string;
+  country?: string;
+  timezone: string;
+  currency?: string;
+  holidays?: string;
+  model_trained_on: string;
+  is_twin: boolean;
+  note?: string;
+}
 
 export interface Health {
   status: string;
@@ -219,7 +234,12 @@ export const api = {
   health: () => get<Health>("/health"),
   sim: () => get<SimState>("/sim/state"),
   kpis: () => get<Kpis>("/network/kpis"),
-  stations: () => get<Station[]>("/stations?modeled=false"),
+  deployment: () => get<Deployment>("/deployment"),
+  stations: () =>
+    get<Station[]>("/stations?modeled=false").then((list) => {
+      registerStationNames(list);
+      return list;
+    }),
   snapshot: (h: number) => get<Snapshot>(`/network/snapshot?h=${h}`),
   forecast: (id: string, model = "champion") => get<Forecast>(`/stations/${id}/forecast?model=${encodeURIComponent(model)}&history_hours=48`),
   explain: (id: string, h?: number) => get<Explanation>(`/stations/${id}/explain${h ? `?h=${h}` : ""}`),

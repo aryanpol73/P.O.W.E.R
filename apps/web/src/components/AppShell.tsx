@@ -1,10 +1,13 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Activity, BarChart3, FlaskConical, LayoutDashboard, Lightbulb, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+
+import { api } from "@/lib/api";
 
 import { SimControls } from "./SimControls";
 
@@ -19,6 +22,8 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const dep = useQuery({ queryKey: ["deployment"], queryFn: api.deployment, staleTime: Infinity });
+  useQuery({ queryKey: ["stations"], queryFn: api.stations }); // registers display names app-wide
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[220px_1fr]">
       <aside className="hidden border-r border-border bg-surface md:flex md:flex-col">
@@ -28,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <div>
             <div className="text-sm font-semibold tracking-wide">P.O.W.E.R.</div>
-            <div className="text-[11px] text-muted">EV grid console</div>
+            <div className="text-[11px] text-muted">{dep.data?.city ? `${dep.data.city} EV grid console` : "EV grid console"}</div>
           </div>
         </div>
         <nav className="flex flex-col gap-1 px-3">
@@ -47,7 +52,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto px-5 py-4 text-[11px] leading-relaxed text-muted">
-          Project #41 · Palo Alto data, 2017-2020. Transformer ratings are a planning assumption.
+          {dep.data?.is_twin ? (
+            <>
+              <span className="mb-1 inline-block rounded bg-warn/15 px-1.5 py-0.5 font-medium text-warn">Pilot digital twin</span>
+              <br />
+              Pune sites and weather, Indian holidays, IST. Models trained on US open charging data (2017–2020) and not yet
+              validated on Indian demand. Transformer ratings are a planning assumption.
+            </>
+          ) : (
+            <>Project #41. Transformer ratings are a planning assumption.</>
+          )}
         </div>
       </aside>
 

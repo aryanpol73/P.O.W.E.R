@@ -54,7 +54,7 @@ class AlertAgent:
                 tt = to_db(worst["target_time"])
                 key = f"{sid}|{tt.isoformat()}|{level.value}|{T.isoformat()}"
                 msg = (
-                    f"{level.value}: {sid} forecast q95 {worst['q95']:.1f} kWh at h+{int(worst['h'])} is "
+                    f"{level.value}: {sts[sid].name if sid in sts else sid} forecast q95 {worst['q95']:.1f} kWh at h+{int(worst['h'])} is "
                     f"{worst['ratio']:.0%} of the assumed {worst['cap']:.0f} kW transformer rating"
                 )
                 a = m.Alert(

@@ -9,6 +9,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from power_core.config import find_repo_root
+from power_core.deployment import Deployment, load_deployment
 
 
 class Settings(BaseSettings):
@@ -28,6 +29,12 @@ class Settings(BaseSettings):
     history_hours: int = Field(default=720, alias="POWER_HISTORY_HOURS")
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
     root: Path | None = Field(default=None, alias="POWER_ROOT")
+    # Deployment profile in configs/deployments/ (the live console's city); "none" = the training sites.
+    deployment_name: str = Field(default="pune", alias="POWER_DEPLOYMENT")
+
+    @property
+    def deployment(self) -> Deployment | None:
+        return load_deployment(self.repo_root, self.deployment_name)
 
     @property
     def repo_root(self) -> Path:

@@ -64,6 +64,7 @@ class LSTMModel:
     patience: int = 3
     max_minutes: float = 30.0
     tz: str = "America/Los_Angeles"
+    holidays: tuple[str, str | None] = ("US", "CA")  # a deployment profile may override tz and holidays
     seed: int = 42
     name: str = "M5_lstm"
     family: str = "lstm"
@@ -85,7 +86,7 @@ class LSTMModel:
             if p.empty:
                 continue
             ts = pd.DatetimeIndex(p["ts"])
-            cal = calendar_features(ts, self.tz)
+            cal = calendar_features(ts, self.tz, holidays=getattr(self, "holidays", ("US", "CA")))
             df = pd.DataFrame(index=ts)
             df["y_scaled"] = p["energy_kwh"].to_numpy(float) / self.scale_[sid]
             df["occ_ratio"] = p["occ_ratio"].to_numpy(float)

@@ -33,6 +33,25 @@ OpenChargeMap ─────────┘   │  (replay, weather, forecast, 
 ```
 The full design is in [docs/02_system_blueprint.md](docs/02_system_blueprint.md). The methodology audit is in [docs/01_audit_and_refinement.md](docs/01_audit_and_refinement.md).
 
+## Pune pilot deployment (digital twin)
+
+The models are trained and scored on the Palo Alto open charging data, and every reported accuracy number
+comes from that data. The live console serves Pune instead (`configs/deployments/pune.yaml`):
+
+* **Sites:** 9 real charging-station locations in Pune from OpenStreetMap (Aundh, Baner, Deccan Gymkhana,
+  Erandwane, Kothrud, Karve Nagar, Sahakar Nagar). Each site keeps the port count and rating of the training
+  site it is paired with, so the capacity assumption and the alert thresholds mean the same thing.
+* **Demand:** each site replays the held-out demand of its paired training site, aligned on local
+  wall-clock time (08:00 Palo Alto becomes 08:00 IST). There is no public per-session Indian dataset to
+  replay instead.
+* **Context:** Pune's own observed weather (Open-Meteo archive), Indian and Maharashtra holidays, and IST.
+  Because IST is UTC+5:30, the hourly grid sits at :30 UTC.
+
+The serving engine maps site ids to the training ids before building features and maps them back
+afterwards, so no training-site id reaches the API or the UI. Live accuracy on the console therefore
+measures the models on a transferred demand profile, not on Indian drivers. Validating on Indian data is
+future work.
+
 ## Repository layout
 
 | Path | What |
@@ -110,6 +129,7 @@ Open **http://localhost:3000** (PWA) and **http://localhost:8000/docs** (API).
 | `DATABASE_URL` | `postgresql+asyncpg://power:power@db:5432/power` | Postgres + TimescaleDB |
 | `MODEL_VERSION` | `latest` | Registry version served |
 | `SIM_MODE` | `REPLAY` | `REPLAY` · `LIVE_SHADOW` · `LIVE` |
+| `POWER_DEPLOYMENT` | `pune` | live-console city profile in `configs/deployments/`; `none` = training sites |
 | `SIM_START` | first test-split hour | Replay start point |
 | `ADMIN_TOKEN` | — | Required for sim control / ack / retrain |
 | `MCP_READONLY_TOKEN` | — | Token the MCP server uses against the API |

@@ -1,10 +1,19 @@
-// Display helpers. Station data is in Palo Alto, so times are shown in its local time zone.
+// Display helpers. The live console serves the Pune deployment, so times are shown in IST and numbers
+// use the Indian locale. Override with NEXT_PUBLIC_SITE_TZ / NEXT_PUBLIC_LOCALE for another deployment.
 
-export const SITE_TZ = "America/Los_Angeles";
+export const SITE_TZ = process.env.NEXT_PUBLIC_SITE_TZ ?? "Asia/Kolkata";
+export const LOCALE = process.env.NEXT_PUBLIC_LOCALE ?? "en-IN";
+export const TZ_LABEL = SITE_TZ === "Asia/Kolkata" ? "IST" : SITE_TZ;
+
+// Station display names, registered when the station list loads (api.stations).
+const NAMES = new Map<string, string>();
+export function registerStationNames(list: { station_id: string; name: string }[]): void {
+  for (const s of list) NAMES.set(s.station_id, s.name);
+}
 
 export function fmtTime(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = {}): string {
   if (!iso) return "-";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(LOCALE, {
     timeZone: SITE_TZ,
     weekday: "short",
     month: "short",
@@ -17,12 +26,12 @@ export function fmtTime(iso: string | null | undefined, opts: Intl.DateTimeForma
 }
 
 export function fmtHour(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone: SITE_TZ, hour: "2-digit", hour12: false }).format(new Date(iso)) + ":00";
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: SITE_TZ, hour: "2-digit", hour12: false }).format(new Date(iso)) + ":00";
 }
 
 export function fmtNum(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "-";
-  return v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return v.toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function fmtPct(v: number | null | undefined, digits = 0): string {
@@ -31,6 +40,8 @@ export function fmtPct(v: number | null | undefined, digits = 0): string {
 }
 
 export function prettyStation(id: string): string {
+  const name = NAMES.get(id);
+  if (name) return name;
   return id.replace(/^[A-Z]+_/, "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

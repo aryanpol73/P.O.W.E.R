@@ -19,7 +19,7 @@ def seed() -> None:
 
     s = get_settings()
     typer.echo(f"seeding {s.db_url}")
-    typer.echo(json.dumps(run_seed(make_sync_engine(s.db_url), s.repo_root, s.source), indent=2))
+    typer.echo(json.dumps(run_seed(make_sync_engine(s.db_url), s.repo_root, s.source, s.deployment), indent=2))
 
 
 @app.command()

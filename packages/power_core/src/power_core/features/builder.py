@@ -73,6 +73,7 @@ def build_direct_frame(
     *,
     tz: str = "America/Los_Angeles",
     pricing_changes: Sequence[str] = (),
+    holidays: tuple[str, str | None] = ("US", "CA"),
     horizons: Iterable[int] | None = None,
     origins: pd.DatetimeIndex | None = None,
     origin_stride_hours: int | None = None,
@@ -115,7 +116,7 @@ def build_direct_frame(
 
         org = origin_state(st, n_ports, cfg.ewma_alpha)
         tgt = pd.concat(
-            [calendar_features(st.index, tz, pricing_changes), target_lags(st["energy_kwh"])],
+            [calendar_features(st.index, tz, pricing_changes, holidays), target_lags(st["energy_kwh"])],
             axis=1,
         )
         tgt["station_age_days"] = (st.index - first_seen.tz_convert("UTC")) / pd.Timedelta(days=1)

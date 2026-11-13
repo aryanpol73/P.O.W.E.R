@@ -102,6 +102,15 @@ async def health(request: Request, s: AsyncSession = Db) -> dict[str, Any]:
     }
 
 
+@router.get("/deployment", tags=["meta"])
+async def deployment(request: Request) -> dict[str, Any]:
+    """Which city the live console serves, and how that relates to the data the models were trained on."""
+    eng = request.app.state.engine
+    if eng.deployment is None:
+        return {"name": eng.source, "display_name": eng.source, "timezone": eng.tz, "is_twin": False, "model_trained_on": eng.source}
+    return eng.deployment.public()
+
+
 # ------------------------------------------------------------------ stations
 @router.get("/stations", tags=["stations"])
 async def list_stations(request: Request, modeled: bool = True, s: AsyncSession = Db) -> list[dict[str, Any]]:

@@ -18,6 +18,7 @@ import pandas as pd
 
 from power_core.config import data_config, feature_config, threshold_config
 from power_core.conformal import calibrator_from_dict
+from power_core.deployment import Deployment
 from power_core.features import build_direct_frame
 from power_ml.analysis import DISPLAY, shap_contributions
 from power_ml.training import QUANTILE, load_artifacts, predict_all
@@ -35,8 +36,15 @@ class Forecast:
 
 
 class ServingEngine:
-    def __init__(self, root: Path, source: str, champion: str = QUANTILE, version: str | None = None) -> None:
-        self.root, self.source, self.champion = root, source, champion
+    def __init__(
+        self,
+        root: Path,
+        source: str,
+        champion: str = QUANTILE,
+        version: str | None = None,
+        deployment: Deployment | None = None,
+    ) -> None:
+        self.root, self.source, self.champion, self.deployment = root, source, champion, deployment
         self.models, self.ensemble, self.manifest = load_artifacts(root, version or None)
         self.version = self.manifest["version"]
         self.dcfg, self.fcfg, self.tcfg = data_config(root), feature_config(root), threshold_config(root)
@@ -44,6 +52,22 @@ class ServingEngine:
         self.calibrators = {k: calibrator_from_dict(v) for k, v in self.manifest["calibrators"].items()}
         self.ranges = self._training_ranges()
         self.network_q = self._network_calibration()
+        self.tz = deployment.timezone if deployment else self.dcfg.timezone
+        self.holidays = deployment.holidays if deployment else ("US", "CA")
+        for m in self.models.values():  # the LSTM builds its own calendar inputs
+            if hasattr(m, "tz"):
+                m.tz, m.holidays = self.tz, self.holidays
+
+    # ------------------------------------------------------------------ deployment ids
+    def _to_model(self, panel: pd.DataFrame) -> pd.DataFrame:
+        """Deployed site ids -> the training (donor) ids the models know."""
+        return self.deployment.to_donor(panel) if self.deployment else panel
+
+    def _to_site(self, s: pd.Series) -> pd.Series:
+        return self.deployment.to_site(s) if self.deployment else s.astype(str)
+
+    def _site_id(self, sid: object) -> str:
+        return self.deployment.donor_to_site.get(str(sid), str(sid)) if self.deployment else str(sid)
 
     # ------------------------------------------------------------------ metadata
     def _network_calibration(self, alpha: float = 0.10) -> dict[int, float]:
@@ -89,8 +113,9 @@ class ServingEngine:
             panel,
             self.stations,
             self.fcfg,
-            tz=self.dcfg.timezone,
+            tz=self.tz,
             pricing_changes=self.dcfg.pricing_changes,
+            holidays=self.holidays,
             origins=pd.DatetimeIndex([origin]),
             apply_warmup=False,
             drop_missing_target=False,
@@ -118,6 +143,7 @@ class ServingEngine:
     ) -> Forecast:
         """``panel``: station_id, ts (UTC), demand columns up to ``origin``, NaN after; weather through origin+24h."""
         t0 = time.perf_counter()
+        panel = self._to_model(panel)
         frame = self._frame(panel, origin)
         preds, quants = self._predict(frame, panel, only=models)
         h = frame["h"].to_numpy()
@@ -133,7 +159,7 @@ class ServingEngine:
             rows.append(
                 pd.DataFrame(
                     {
-                        "station_id": frame["station_id"].astype(str),
+                        "station_id": self._to_site(frame["station_id"]),
                         "model": name,
                         "h": h,
                         "target_time": frame["target_time"],
@@ -147,7 +173,7 @@ class ServingEngine:
         out = pd.concat(rows, ignore_index=True)
         expl = self.explain(frame) if explain else pd.DataFrame()
         hist = panel.loc[panel["ts"] <= origin]
-        degraded = {s: bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False for s, g in hist.groupby("station_id")}
+        degraded = {self._site_id(s): bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False for s, g in hist.groupby("station_id")}
         return Forecast(origin, out, expl, (time.perf_counter() - t0) * 1000, degraded)
 
     def explain(self, frame: pd.DataFrame, top_k: int = 8) -> pd.DataFrame:
@@ -168,7 +194,7 @@ class ServingEngine:
             )
             recs.append(
                 {
-                    "station_id": str(row["station_id"]),
+                    "station_id": self._site_id(row["station_id"]),
                     "h": int(row["h"]),
                     "base_value": round(float(base[i]), 4),
                     "contributions": items,
@@ -188,7 +214,7 @@ class ServingEngine:
     ) -> dict[str, Any]:
         """What-if: shock the *future* covariates only; history and live state are untouched."""
         base = self.forecast(panel, origin, explain=False, models=(self.champion,)).rows
-        shocked = panel.copy()
+        shocked = self._to_model(panel)
         fut = shocked["ts"] > origin
         shocked.loc[fut, "temperature_2m_c"] = shocked.loc[fut, "temperature_2m_c"] + temperature_delta_c
         if precipitation_mm is not None:
@@ -201,7 +227,7 @@ class ServingEngine:
         )
         scen = pd.DataFrame(
             {
-                "station_id": frame["station_id"].astype(str),
+                "station_id": self._to_site(frame["station_id"]),
                 "h": h,
                 "target_time": frame["target_time"],
                 "q05": lo * demand_multiplier,

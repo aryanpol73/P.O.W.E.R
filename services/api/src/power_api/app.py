@@ -35,7 +35,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if n == 0:
             raise RuntimeError("database is empty: run `uv run power-api seed` first")
         engine = await asyncio.to_thread(
-            ServingEngine, settings.repo_root, settings.source, settings.champion, settings.model_version or None
+            ServingEngine,
+            settings.repo_root,
+            settings.source,
+            settings.champion,
+            settings.model_version or None,
+            settings.deployment,
         )
         bus = InProcessBus()
         sim = Simulator(maker, engine, settings, bus)

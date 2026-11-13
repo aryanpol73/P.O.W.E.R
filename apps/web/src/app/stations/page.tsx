@@ -12,7 +12,7 @@ export default function StationsPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold">Stations</h1>
-        <p className="text-sm text-muted">Charging sites grouped from the City of Palo Alto ChargePoint data. Risk uses the next 12 hours.</p>
+        <p className="text-sm text-muted">Pune pilot charging sites (locations from OpenStreetMap). Risk uses the next 12 hours.</p>
       </div>
       {isError && <p className="text-sm text-crit">Cannot reach the API.</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
