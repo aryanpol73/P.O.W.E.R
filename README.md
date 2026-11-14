@@ -110,17 +110,41 @@ Set `DATABASE_URL=postgresql+asyncpg://...` and `uv sync --extra postgres` for P
 - Node.js 20+ with `pnpm` 9 (only for frontend development outside Docker)
 - Free API keys: **ACN-Data** token (if using ACN) and **OpenChargeMap** key (optional, context stations). Open-Meteo needs no key (non-commercial use).
 
-## Quick start (one command after data)
+## Quick start
+
+### Docker (production stack: TimescaleDB + API + PWA + MCP)
 
 ```bash
 git clone https://github.com/aryanpol73/P.O.W.E.R.git
 cd P.O.W.E.R
-cp .env.example .env            # fill keys if you have them
-make data                       # download datasets + weather archive, verify sha256
-make train                      # full offline pipeline (≈ 20–60 min on a laptop CPU)
-make up                         # db + api + worker + web + mcp
+cp .env.example .env            # set ADMIN_TOKEN and POSTGRES_PASSWORD
+# data/, artifacts/ and reports/ must exist: run the training pipeline ("Reproducible training") once
+docker compose up -d --build    # first start seeds PostgreSQL (about 30 s), then serves
 ```
-Open **http://localhost:3000** (PWA) and **http://localhost:8000/docs** (API).
+Open **http://localhost:3011** (PWA), **http://localhost:8011/docs** (API) and **http://localhost:8765/mcp**
+(MCP, streamable HTTP). Host ports are 3011/8011/5433/8765 by default so the stack can sit next to other
+local projects; change them with `POWER_WEB_PORT`, `POWER_API_PORT`, `POWER_DB_PORT` and `POWER_MCP_PORT`.
+
+* **db**: `timescale/timescaledb-ha:pg16`. `historical_telemetry`, `live_rolling_buffer`, `weather_hourly` and
+  `model_predictions` become hypertables automatically; seeding uses `COPY`.
+* **api**: one process with the embedded simulator and agents as the single writer. Data, models and
+  reports are mounted from the repo, not baked into the image. `POWER_TORCH=none` builds without PyTorch;
+  the LSTM is then skipped and every other model still serves.
+* **web**: Next.js standalone server. `NEXT_PUBLIC_API_URL` is baked at build time as the browser-facing
+  API address. The admin proxy reaches the API inside the network and adds `ADMIN_TOKEN` server-side.
+* **mcp**: read-only MCP server over the API.
+
+`docker compose down` stops the stack, and `docker compose down -v` also deletes the database volume.
+
+### Local development (no Docker)
+
+```bash
+uv sync --extra dl --extra postgres
+uv run power-api seed && uv run power-api serve --port 8011      # SQLite at data/power.db by default
+npm --prefix apps/web install && NEXT_PUBLIC_API_URL=http://127.0.0.1:8011 npm --prefix apps/web run dev -- -p 3011
+```
+To run the test suite on PostgreSQL: `docker compose up -d db`, create a `power_test` database, then set
+`POWER_TEST_DATABASE_URL=postgresql+asyncpg://power:power@127.0.0.1:5433/power_test uv run pytest`.
 
 ## Environment variables (`.env.example`)
 

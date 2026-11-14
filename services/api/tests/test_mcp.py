@@ -13,8 +13,11 @@ from power_mcp.guards import RateLimiter  # noqa: E402
 
 @pytest.fixture
 def tools(client: TestClient, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
-    api = TestClient(client.app, base_url="http://testserver/api/v1")
-    monkeypatch.setattr(srv, "_client", api)
+    class Prefixed:  # the MCP server's httpx client, routed into the app (same event loop as the fixture)
+        def request(self, method: str, path: str, **kw):  # type: ignore[no-untyped-def]
+            return client.request(method, "/api/v1" + path, **kw)
+
+    monkeypatch.setattr(srv, "_client", Prefixed())
     monkeypatch.setattr(srv, "limiter", RateLimiter(1000, 60))
     return srv
 

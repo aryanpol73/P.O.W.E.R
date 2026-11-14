@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -93,7 +94,9 @@ def client(power_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  
     from power_api.seed import seed
     from power_api.settings import Settings
 
-    url = f"sqlite+aiosqlite:///{(tmp_path / 'power.db').as_posix()}"
+    # POWER_TEST_DATABASE_URL runs the suite on PostgreSQL, e.g.
+    # postgresql+asyncpg://power:power@127.0.0.1:5433/power_test (docker compose up -d db)
+    url = os.environ.get("POWER_TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{(tmp_path / 'power.db').as_posix()}"
     seed(make_sync_engine(url), power_root, "palo_alto")
     settings = Settings(DATABASE_URL=url, POWER_ROOT=power_root, POWER_EMBEDDED_WORKER=False, ADMIN_TOKEN="secret",
                         POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="none",

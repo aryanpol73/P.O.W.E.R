@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -47,7 +48,9 @@ def twin(power_root: Path, tmp_path: Path):  # type: ignore[no-untyped-def]
     (power_root / "configs" / "deployments").mkdir(parents=True, exist_ok=True)
     (power_root / "configs" / "deployments" / "twin.yaml").write_text(yaml.safe_dump(cfg))
     dep = load_deployment(power_root, "twin")
-    url = f"sqlite+aiosqlite:///{(tmp_path / 'twin.db').as_posix()}"
+    # POWER_TEST_DATABASE_URL runs the suite on PostgreSQL, e.g.
+    # postgresql+asyncpg://power:power@127.0.0.1:5433/power_test (docker compose up -d db)
+    url = os.environ.get("POWER_TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{(tmp_path / 'twin.db').as_posix()}"
     seed(make_sync_engine(url), power_root, "palo_alto", dep, weather_fetcher=_fake_weather)
     settings = Settings(DATABASE_URL=url, POWER_ROOT=power_root, POWER_EMBEDDED_WORKER=False, ADMIN_TOKEN="secret",
                         POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="twin", POWER_DISCOVERY=False)

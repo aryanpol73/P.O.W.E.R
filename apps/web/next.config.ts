@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   // A separate output folder lets a production build run next to `next dev` (which uses .next).
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   poweredByHeader: false,
+  output: "standalone", // self-contained server for the Docker image (apps/web/Dockerfile)
   async headers() {
     return [
       {

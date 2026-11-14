@@ -66,6 +66,26 @@ def deployment_weather(
     return w
 
 
+def _copy(engine: Engine, table: str, frame: pd.DataFrame) -> None:
+    """PostgreSQL bulk load with COPY (about 50x faster than multi-row INSERT, no parameter limit)."""
+    cols = list(frame.columns)
+    with engine.begin() as conn:
+        raw = conn.connection.driver_connection
+        with raw.cursor() as cur, cur.copy(f"COPY {table} ({', '.join(cols)}) FROM STDIN") as cp:
+            for row in frame.itertuples(index=False, name=None):
+                cp.write_row([None if (isinstance(v, float) and v != v) else _py(v) for v in row])
+
+
+def _py(v: object) -> object:
+    """numpy / pandas scalars -> plain Python for the COPY writer."""
+    if v is pd.NaT or v is None:
+        return None
+    if isinstance(v, pd.Timestamp):
+        return v.to_pydatetime()
+    item = getattr(v, "item", None)
+    return item() if callable(item) else v
+
+
 def _split_labels(ts: pd.Series, bounds: SplitBounds) -> pd.Series:
     split = pd.Series("gap", index=ts.index)
     split[(ts >= bounds.train_start) & (ts <= bounds.train_end)] = "train"
@@ -190,17 +210,12 @@ def seed(
         ):
             conn.execute(delete(table))
     for name, frame in (("stations", st), ("historical_telemetry", hist), ("weather_hourly", weather)):
-        frame.to_sql(
-            name,
-            engine,
-            if_exists="append",
-            index=False,
-            chunksize=CHUNK,
-            method="multi" if engine.dialect.name != "sqlite" else None,
-        )
-    if engine.dialect.name == "sqlite":
-        with engine.begin() as conn:
-            conn.execute(text("ANALYZE"))
+        if engine.dialect.name == "postgresql":
+            _copy(engine, name, frame)
+        else:
+            frame.to_sql(name, engine, if_exists="append", index=False, chunksize=CHUNK)
+    with engine.begin() as conn:
+        conn.execute(text("ANALYZE"))
     return {
         "deployment": deployment.cfg.name if deployment else None,
         "stations": len(st),

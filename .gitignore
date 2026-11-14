@@ -34,3 +34,6 @@ reports/*.parquet
 # Local database (SQLite + WAL files)
 data/*.db
 data/*.db-*
+
+# Next.js alternate build folders (NEXT_DIST_DIR)
+apps/web/.next-*/

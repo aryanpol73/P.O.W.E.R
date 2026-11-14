@@ -7,6 +7,7 @@ dependencies = ["power-core", "power-ml", "power-api", "power-mcp"]
 
 [project.optional-dependencies]
 dl = ["power-ml[dl]"]   # uv sync --extra dl  -> PyTorch for the LSTM
+postgres = ["power-api[postgres]"]   # uv sync --extra postgres  -> asyncpg + psycopg (PostgreSQL / TimescaleDB)
 
 [tool.uv]
 package = false

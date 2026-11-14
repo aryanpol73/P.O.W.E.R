@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -175,7 +176,14 @@ def load_artifacts(root: Path, version: str | None = None) -> tuple[dict[str, An
     cfg = load_models_cfg(root)
     d = artifacts_dir(root, version or cfg["version"])
     manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
-    models = {n: joblib.load(d / f"{n}.joblib") for n in manifest["models"] if n != "E1_ensemble"}
+    models = {}
+    for n in manifest["models"]:
+        if n == "E1_ensemble":
+            continue
+        try:
+            models[n] = joblib.load(d / f"{n}.joblib")
+        except ModuleNotFoundError as exc:  # e.g. the LSTM in an image built without PyTorch
+            warnings.warn(f"skipping {n}: {exc}; install the missing package to serve it", stacklevel=2)
     ens = joblib.load(d / "E1_ensemble.joblib")
     needs_panel = [m for m in models.values() if hasattr(m, "attach_panel")]
     if needs_panel:  # sequence models read hourly history from the panel (not pickled with them)

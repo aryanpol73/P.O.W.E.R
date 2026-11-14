@@ -1,0 +1,7 @@
+node_modules
+.next
+.next-*
+public/sw.js
+public/swe-worker-*.js
+npm-debug.log*
+.env*

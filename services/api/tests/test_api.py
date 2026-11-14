@@ -106,12 +106,11 @@ def test_sim_control_pause_speed_reset(client):
 def test_pipeline_is_idempotent_per_origin(client):
     _tick(client)
     sim = client.app.state.sim
-    import asyncio
-
     from power_api.db.session import to_db
 
     T = to_db(pd.Timestamp(client.get("/api/v1/sim/state").json()["sim_now"]))
-    assert asyncio.run(sim._process(T)) == {"skipped": True}
+    # Run on the app's own event loop: pooled asyncpg connections are bound to it.
+    assert client.portal.call(sim._process, T) == {"skipped": True}
 
 
 def test_websocket_streams_pipeline_events(client):

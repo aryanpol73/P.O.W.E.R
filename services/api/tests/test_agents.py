@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import httpx
 from fastapi.testclient import TestClient
 
@@ -98,4 +96,3 @@ def test_discovery_adds_unmodelled_stations(client: TestClient) -> None:
     assert "OSM_N2" not in sts and "OSM_W3" in sts
     snap = client.get("/api/v1/network/snapshot", params={"h": 1}).json()
     assert any(x["station_id"] == "OSM_N1" and x["risk"] is None for x in snap["stations"])
-    asyncio.run(asyncio.sleep(0))
