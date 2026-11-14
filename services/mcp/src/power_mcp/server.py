@@ -337,7 +337,7 @@ async def copilot_chat(request: Any) -> Any:
     if not _copilot_authorized(request):
         return JSONResponse({"detail": "copilot token required"}, status_code=401)
     if not enabled():
-        return JSONResponse({"detail": "copilot disabled: set ANTHROPIC_API_KEY on the MCP service"}, status_code=503)
+        return JSONResponse({"detail": "copilot disabled: set GROQ_API_KEY on the MCP service"}, status_code=503)
     body = await request.json()
     text = str(body.get("message", "")).strip()[:4000]
     if not text:

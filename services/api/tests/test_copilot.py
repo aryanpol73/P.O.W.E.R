@@ -101,8 +101,8 @@ def test_tool_loop_streams_and_keeps_history(client: TestClient, copilot) -> Non
 
 
 def test_copilot_status_and_disabled_without_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"):
+    for k in ("GROQ_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"):
         monkeypatch.delenv(k, raising=False)
     assert cp.enabled() is False
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setenv("GROQ_API_KEY", "x")
     assert cp.enabled() is True

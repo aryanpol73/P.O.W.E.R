@@ -119,7 +119,7 @@ export function CopilotPanel() {
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
             {status.data && !status.data.enabled && (
               <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
-                The copilot is off. Set <code>ANTHROPIC_API_KEY</code> on the MCP service to turn it on.
+                The copilot is off. Set <code>GROQ_API_KEY</code> on the MCP service to turn it on.
                 {status.data.detail ? ` (${status.data.detail})` : ""}
               </p>
             )}

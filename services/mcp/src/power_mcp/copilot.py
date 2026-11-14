@@ -5,7 +5,7 @@ JSON schemas), and every tool call goes through ``mcp.call_tool``, so the number
 REST API, the console and any external MCP client see.
 
 Served by the MCP process at ``POST /copilot`` (newline-delimited JSON stream) and reached from the browser
-through the web app's server route, which keeps ``ANTHROPIC_API_KEY`` and ``POWER_COPILOT_TOKEN`` server-side.
+through the web app's server route, which keeps ``GROQ_API_KEY`` and ``POWER_COPILOT_TOKEN`` server-side.
 Disabled (``GET /copilot/status`` -> enabled: false) when no Anthropic credentials are configured.
 """
 
@@ -68,7 +68,7 @@ class Conversations:
 
 
 def enabled() -> bool:
-    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+    return bool(os.environ.get("GROQ_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
                 or os.environ.get("ANTHROPIC_PROFILE"))
 
 

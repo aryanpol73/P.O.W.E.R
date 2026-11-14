@@ -807,7 +807,7 @@ Allocation uses forecast headroom including already-assigned load, which prevent
 }
 ```
 
-**In-app copilot** (`apps/web/src/app/api/copilot/route.ts`): a server-side route calls the Anthropic Messages API (`claude-sonnet-5-5`) with tool definitions that mirror the MCP tools. It executes tool calls against the REST API and streams the answer to `CopilotPanel`. The system prompt rule is: *"Only state numbers returned by a tool; cite the tool; if a scenario has OOD flags, say so."* The API key stays server-side (`ANTHROPIC_API_KEY`), and the copilot is disabled when it is absent. The core project never depends on it.
+**In-app copilot** (`apps/web/src/app/api/copilot/route.ts`): a server-side route calls the Anthropic Messages API (`claude-sonnet-5-5`) with tool definitions that mirror the MCP tools. It executes tool calls against the REST API and streams the answer to `CopilotPanel`. The system prompt rule is: *"Only state numbers returned by a tool; cite the tool; if a scenario has OOD flags, say so."* The API key stays server-side (`GROQ_API_KEY`), and the copilot is disabled when it is absent. The core project never depends on it.
 
 ---
 

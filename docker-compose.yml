@@ -91,7 +91,7 @@ services:
     environment:
       POWER_API_URL: http://api:8000
       # In-app copilot: Claude with the same tools. Off when no key is set.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       POWER_COPILOT_TOKEN: ${POWER_COPILOT_TOKEN:-change-me-too}
       POWER_COPILOT_MODEL: ${POWER_COPILOT_MODEL:-claude-opus-5-5}
       POWER_COPILOT_EFFORT: ${POWER_COPILOT_EFFORT:-low}

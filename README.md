@@ -162,7 +162,7 @@ To run the test suite on PostgreSQL: `docker compose up -d db`, create a `power_
 | `OPEN_METEO_BASE` | `https://api.open-meteo.com/v1` | Forecast API |
 | `OPEN_METEO_ARCHIVE` | `https://archive-api.open-meteo.com/v1` | Archive API |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | — | Web Push (`make vapid` generates) |
-| `ANTHROPIC_API_KEY` | — | Optional in-app copilot; feature disabled when empty |
+| `GROQ_API_KEY` | — | Optional in-app copilot; feature disabled when empty |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Frontend → API |
 | `SEED` | `42` | Global determinism |
 
@@ -242,10 +242,10 @@ Try: *"Which Pune sites are at risk in the next 12 hours, and what drives the pe
 The chat button in the console opens a copilot. It is Claude (`claude-opus-5-5`, effort `low`) with exactly the
 MCP server's nine tools, so it cannot reach the database and every number it quotes comes from a tool call
 it shows as it works. It runs on the MCP service (`POST /copilot`, a newline-delimited JSON stream), and the
-browser reaches it through the web app's server route `/api/copilot`. `ANTHROPIC_API_KEY` and
+browser reaches it through the web app's server route `/api/copilot`. `GROQ_API_KEY` and
 `POWER_COPILOT_TOKEN` never reach the browser.
 
-* Off until `ANTHROPIC_API_KEY` is set on the MCP service (the panel says so).
+* Off until `GROQ_API_KEY` is set on the MCP service (the panel says so).
 * Server-side refusal fallback (`fallbacks: "default"`) is on, so a declined request is retried on a fallback
   model within the same call.
 * Conversation history is kept server-side and append-only. Limited to 10 questions/min and 8 tool rounds per
