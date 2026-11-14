@@ -12,7 +12,12 @@ dependencies = [
     "lightgbm>=4.7",  # eval_X / eval_y API
     "optuna>=4.0",
     "joblib>=1.4",
+    "matplotlib>=3.9",
 ]
+
+[project.optional-dependencies]
+# Deep-learning model (M5 LSTM). Install with: uv sync --extra dl
+dl = ["torch>=2.4"]
 
 [project.scripts]
 power-ml = "power_ml.cli:app"

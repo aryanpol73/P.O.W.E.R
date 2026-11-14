@@ -1,0 +1,4 @@
+group,n,mean_y,wape_M4_lightgbm_quantile,wape_M4_lightgbm,wape_B1_seasonal_naive_24h,wape_B3_climatology
+1-3,98568,6.83,0.4367,0.4445,0.6857,0.5799
+13-24,392688,6.835,0.4723,0.4952,0.6862,0.5801
+4-12,295272,6.837,0.4717,0.4944,0.6856,0.5798

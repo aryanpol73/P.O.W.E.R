@@ -1,0 +1,102 @@
+# Pune pilot (digital twin) deployment profile.
+#
+# The models are trained and evaluated on the Palo Alto (USA) public charging data; that is where
+# every reported accuracy number comes from. This profile *deploys* those frozen models on Pune
+# charging sites for the live console:
+#
+#   * sites:     real charging-station locations in Pune from OpenStreetMap (osm field), named by
+#                locality via OSM reverse geocoding. Port counts and ratings are the paired
+#                training site's, so the capacity assumption and alert thresholds keep their meaning.
+#   * demand:    each Pune site replays the held-out demand of its paired training site ("donor"),
+#                aligned on local wall-clock time (08:00 in Palo Alto becomes 08:00 IST), because
+#                no public per-session Indian charging dataset exists to replay instead.
+#   * weather:   Pune's own observed weather (Open-Meteo archive) at each site.
+#   * calendar:  Indian + Maharashtra public holidays, Asia/Kolkata time zone.
+#
+# Consequence, stated in the UI: live accuracy on this console measures the models on a transferred
+# demand profile, not on Indian drivers. Validating on Indian data is future work.
+name: pune
+display_name: Pune pilot (digital twin)
+city: Pune
+country: India
+timezone: Asia/Kolkata
+holidays: {country: IN, subdiv: MH}
+currency: INR
+locale: en-IN
+model_source: palo_alto
+donor_timezone: America/Los_Angeles
+weather_cache: data/external/weather_pune.parquet
+
+sites:
+  - id: PUN_WESTEND_AUNDH
+    name: Westend Mall, Aundh
+    area: Aundh
+    latitude: 18.56233
+    longitude: 73.80694
+    poi: mall
+    osm: node/11217502924
+    donor: PA_BRYANT
+  - id: PUN_AUNDH_SHINDE_MARG
+    name: Mahadji Shinde Marg, Aundh
+    area: Aundh
+    latitude: 18.56389
+    longitude: 73.80705
+    poi: commercial
+    osm: node/12458871181
+    donor: PA_HIGH
+  - id: PUN_AUNDH_GAIKWAD_PATH
+    name: Shankarao Gaikwad Path, Aundh
+    area: Aundh
+    latitude: 18.55363
+    longitude: 73.80656
+    poi: commercial
+    osm: node/10250046452
+    donor: PA_HAMILTON
+  - id: PUN_BALEWADI_HIGH_STREET
+    name: Balewadi High Street, Baner
+    area: Baner
+    latitude: 18.56721
+    longitude: 73.77199
+    poi: commercial
+    osm: node/6116153836
+    donor: PA_WEBSTER
+  - id: PUN_DECCAN_GYMKHANA
+    name: Gokhale Path, Deccan Gymkhana
+    area: Deccan Gymkhana
+    latitude: 18.52282
+    longitude: 73.84105
+    poi: commercial
+    osm: node/12473454969
+    donor: PA_RINCONADA_LIB
+  - id: PUN_PAUD_ROAD
+    name: Paud Road, Erandwane
+    area: Erandwane
+    latitude: 18.50956
+    longitude: 73.81470
+    poi: commercial
+    osm: node/10097434142
+    donor: PA_CAMBRIDGE
+  - id: PUN_KOTHRUD
+    name: Kothrud
+    area: Kothrud
+    latitude: 18.50719
+    longitude: 73.80377
+    poi: commercial
+    osm: node/9411828530
+    donor: PA_SHERMAN
+  - id: PUN_KARVE_NAGAR
+    name: Gandhibhavan Road, Karve Nagar
+    area: Karve Nagar
+    latitude: 18.49610
+    longitude: 73.80886
+    poi: residential
+    osm: node/763446417
+    donor: PA_TED_THOMPSON
+  - id: PUN_SAHAKAR_NAGAR
+    name: Sahakar Nagar
+    area: Sahakar Nagar
+    latitude: 18.48450
+    longitude: 73.84968
+    poi: residential
+    osm: node/10097434144
+    donor: PA_MPL

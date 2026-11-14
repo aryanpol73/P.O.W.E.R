@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "power-api", "serve", "--port", "8011"],
+      "port": 8011,
+      "autoPort": false,
+      "env": { "CORS_ORIGINS": "http://localhost:3011,http://127.0.0.1:3011" }
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "apps/web", "--", "-p", "3011"],
+      "port": 3011,
+      "autoPort": false,
+      "env": { "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8011" }
+    }
+  ]
+}

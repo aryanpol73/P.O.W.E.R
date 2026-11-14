@@ -3,17 +3,23 @@ name = "power-workspace"
 version = "0.1.0"
 description = "P.O.W.E.R. monorepo root (uv workspace)"
 requires-python = ">=3.12,<3.13"
-dependencies = ["power-core", "power-ml"]
+dependencies = ["power-core", "power-ml", "power-api", "power-mcp"]
+
+[project.optional-dependencies]
+dl = ["power-ml[dl]"]   # uv sync --extra dl  -> PyTorch for the LSTM
+postgres = ["power-api[postgres]"]   # uv sync --extra postgres  -> asyncpg + psycopg (PostgreSQL / TimescaleDB)
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["packages/power_core", "ml"]
+members = ["packages/power_core", "ml", "services/api", "services/mcp"]
 
 [tool.uv.sources]
 power-core = { workspace = true }
 power-ml = { workspace = true }
+power-api = { workspace = true }
+power-mcp = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -26,7 +32,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/power_core/tests", "ml/tests"]
+testpaths = ["packages/power_core/tests", "ml/tests", "services/api/tests", "services/mcp/tests"]
 markers = ["leakage: tests that prove no future information reaches features or splits"]
 addopts = "-ra"
 
@@ -42,7 +48,7 @@ ignore = ["N803", "N806"]  # X, T, N_s are conventional in ML/maths code
 "ml/src/power_ml/cli.py" = ["B008"]  # typer.Option() defaults are the documented Typer idiom
 
 [tool.ruff.lint.isort]
-known-first-party = ["power_core", "power_ml"]
+known-first-party = ["power_core", "power_ml", "power_api", "power_mcp"]
 
 [tool.mypy]
 python_version = "3.12"

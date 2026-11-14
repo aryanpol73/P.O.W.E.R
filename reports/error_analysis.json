@@ -1,0 +1,46 @@
+{
+  "model": "M4_lightgbm_quantile",
+  "tables": {
+    "station_id": "error_by_station_id.csv",
+    "saturated": "error_by_saturated.csv",
+    "temp_tercile": "error_by_temp_tercile.csv",
+    "rain": "error_by_rain.csv",
+    "is_holiday": "error_by_is_holiday.csv",
+    "h_bucket": "error_by_h_bucket.csv",
+    "weekday": "error_by_weekday.csv",
+    "hour": "error_by_hour.csv"
+  },
+  "highlights": {
+    "saturated": {
+      "not saturated": 0.4707,
+      "saturated": 0.3498
+    },
+    "temp_tercile": {
+      "cool": 0.5786,
+      "mild": 0.4724,
+      "warm": 0.4176
+    },
+    "rain": {
+      "dry": 0.4659,
+      "rain": 0.4966
+    },
+    "is_holiday": {
+      "false": 0.4617,
+      "true": 0.6917
+    },
+    "h_bucket": {
+      "1-3": 0.4367,
+      "13-24": 0.4723,
+      "4-12": 0.4717
+    }
+  },
+  "residual_acf_lag1": 0.559,
+  "residual_acf_lag24": -0.0,
+  "example_site": "PA_HIGH",
+  "figures": {
+    "heatmap": "error_heatmap_weekday_hour.png",
+    "by_station": "error_by_station.png",
+    "acf": "residual_acf.png",
+    "example": "forecast_example.png"
+  }
+}

@@ -1,0 +1,107 @@
+# P.O.W.E.R. production stack: TimescaleDB (PostgreSQL 16) + API (with the embedded simulator and agents)
+# + PWA + MCP server.
+#
+#   docker compose up -d --build        # first start seeds the database (about a minute)
+#   open http://localhost:3011          # console;  API docs: http://localhost:8011/docs
+#
+# Data, trained models and reports are NOT baked into images (they are git-ignored and large): the API
+# mounts ./data, ./artifacts, ./reports and ./configs from the repo. Run the training pipeline first
+# (README "Reproducible training") or copy those folders in.
+#
+# Host ports default to 3011/8011/5433/8765 so the stack can run next to other local projects; change
+# them with POWER_WEB_PORT / POWER_API_PORT / POWER_DB_PORT / POWER_MCP_PORT in .env.
+
+name: power
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+asyncpg://power:${POSTGRES_PASSWORD:-power}@db:5432/power
+  POWER_ROOT: /app
+  POWER_SOURCE: palo_alto
+  POWER_DEPLOYMENT: ${POWER_DEPLOYMENT:-pune}
+  SIM_MODE: ${SIM_MODE:-REPLAY}
+  SIM_TICK_SECONDS: ${SIM_TICK_SECONDS:-10}
+  ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
+  CORS_ORIGINS: http://localhost:${POWER_WEB_PORT:-3011},http://127.0.0.1:${POWER_WEB_PORT:-3011}
+  POWER_DISCOVERY: ${POWER_DISCOVERY:-true}
+  POWER_PUSH: ${POWER_PUSH:-true}
+  # Web Push keys (base64url). Empty = generated once into data/vapid.json.
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@localhost}
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: power
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-power}
+      POSTGRES_DB: power
+    ports: ["127.0.0.1:${POWER_DB_PORT:-5433}:5432"]
+    volumes: ["pgdata:/home/postgres/pgdata"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U power -d power"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      args:
+        TORCH: ${POWER_TORCH:-cpu}          # cpu = CPU-only PyTorch for the LSTM; none = serve without M5
+    environment: *api-env
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["127.0.0.1:${POWER_API_PORT:-8011}:8000"]
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./reports:/app/reports:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"]
+      interval: 10s
+      timeout: 6s
+      start_period: 180s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: apps/web
+      args:
+        # Baked into the browser bundle: the API as the *browser* reaches it.
+        NEXT_PUBLIC_API_URL: http://localhost:${POWER_API_PORT:-8011}
+    environment:
+      POWER_API_URL: http://api:8000         # server-side admin proxy, inside the compose network
+      POWER_MCP_URL: http://mcp:8765         # server-side copilot proxy
+      POWER_COPILOT_TOKEN: ${POWER_COPILOT_TOKEN:-change-me-too}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["127.0.0.1:${POWER_WEB_PORT:-3011}:3000"]
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: .
+      dockerfile: services/mcp/Dockerfile
+    environment:
+      POWER_API_URL: http://api:8000
+      # In-app copilot: an LLM with the same tools. Groq (free tier) or Claude, whichever key is set; off when neither.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      POWER_COPILOT_PROVIDER: ${POWER_COPILOT_PROVIDER:-}
+      POWER_COPILOT_TOKEN: ${POWER_COPILOT_TOKEN:-change-me-too}
+      POWER_COPILOT_MODEL: ${POWER_COPILOT_MODEL:-}
+      POWER_COPILOT_EFFORT: ${POWER_COPILOT_EFFORT:-low}
+    command: ["power-mcp", "--transport", "http", "--host", "0.0.0.0", "--port", "8765"]
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["127.0.0.1:${POWER_MCP_PORT:-8765}:8765"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:

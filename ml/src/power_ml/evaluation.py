@@ -29,9 +29,9 @@ from power_core.stats import diebold_mariano, holm
 from power_ml.training import ALPHA, QUANTILE, load_artifacts, load_split, predict_all
 
 LEADERBOARD_ORDER = ("B0_persistence", "B1_seasonal_naive_24h", "B2_seasonal_naive_168h", "B3_climatology",
-                     "M1_ridge", "M2_random_forest", "M3_xgboost", "M4_lightgbm", QUANTILE, "E1_ensemble")
+                     "M1_ridge", "M2_random_forest", "M3_xgboost", "M4_lightgbm", QUANTILE, "M5_lstm", "E1_ensemble")
 DM_MODELS = ("B1_seasonal_naive_24h", "B3_climatology", "M1_ridge", "M2_random_forest", "M3_xgboost",
-             "M4_lightgbm", "E1_ensemble")
+             "M4_lightgbm", "M5_lstm", "E1_ensemble")
 
 
 def _train_reference(root: Path, source: str) -> tuple[float, pd.Series]:

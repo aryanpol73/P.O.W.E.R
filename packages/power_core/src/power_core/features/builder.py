@@ -47,6 +47,13 @@ def _check(panel: pd.DataFrame, stations: pd.DataFrame) -> None:
         raise PanelError("panel has duplicate (station_id, ts) rows")
 
 
+def _at_target(df: pd.DataFrame, tpos: np.ndarray, inside: np.ndarray) -> np.ndarray:
+    """Gather rows at target positions; positions past the end of the panel become NaN."""
+    vals = df.to_numpy(dtype=np.float64)[tpos]
+    vals[~inside] = np.nan
+    return vals
+
+
 def _dense_station(panel: pd.DataFrame, sid: str) -> pd.DataFrame:
     st = panel.loc[panel["station_id"] == sid].set_index("ts").sort_index()
     if len(st) > 1:
@@ -66,6 +73,7 @@ def build_direct_frame(
     *,
     tz: str = "America/Los_Angeles",
     pricing_changes: Sequence[str] = (),
+    holidays: tuple[str, str | None] = ("US", "CA"),
     horizons: Iterable[int] | None = None,
     origins: pd.DatetimeIndex | None = None,
     origin_stride_hours: int | None = None,
@@ -108,7 +116,7 @@ def build_direct_frame(
 
         org = origin_state(st, n_ports, cfg.ewma_alpha)
         tgt = pd.concat(
-            [calendar_features(st.index, tz, pricing_changes), target_lags(st["energy_kwh"])],
+            [calendar_features(st.index, tz, pricing_changes, holidays), target_lags(st["energy_kwh"])],
             axis=1,
         )
         tgt["station_age_days"] = (st.index - first_seen.tz_convert("UTC")) / pd.Timedelta(days=1)
@@ -129,26 +137,30 @@ def build_direct_frame(
             mask &= ((idx - idx[0]) // HOUR) % stride == 0
         if not mask.any():
             continue
-        org_T = org.loc[mask]
+        # Vectorised over horizons: row (origin p, horizon h) reads ORG features at p and TGT
+        # features at p + h (NaN past the end of the panel), via one NumPy gather per block.
+        pos = np.flatnonzero(mask)
+        hs_arr = np.asarray(hs, dtype=np.int64)
+        P = np.repeat(pos, len(hs_arr))
+        Hh = np.tile(hs_arr, len(pos))
+        tpos = P + Hh
+        inside = tpos < len(idx)
+        tpos_c = np.minimum(tpos, len(idx) - 1)
+        w_full = derive_weather(temp, precip, cfg)
 
-        for h in hs:
-            g = tgt.shift(-h).loc[mask]
-            w = derive_weather(temp.shift(-h).loc[mask], precip.shift(-h).loc[mask], cfg)
-            block = pd.concat([org_T, g, w], axis=1)
-            block.insert(0, "h", np.int8(h))
-            block.insert(0, "target_time", org_T.index + h * HOUR)
-            block.insert(0, "origin", org_T.index)
-            block.insert(0, "station_id", sid)
-            block["total_ports"] = n_ports
-            block["rated_kw_total"] = float(meta["rated_kw_total"])
-            block["poi_category"] = str(meta["poi_category"])
-            block["y"] = y.shift(-h).loc[mask].to_numpy()
-            block["occ_target"] = occ.shift(-h).loc[mask].to_numpy()
-            # Cast now (not after the concat) so peak memory stays at float32 size.
-            num = [c for c in block.columns if c not in registry.ID_COLUMNS and c != "poi_category"
-                   and block[c].dtype.kind in "iufb"]
-            block[num] = block[num].astype(np.float32)
-            frames.append(block.reset_index(drop=True))
+        cols: dict[str, np.ndarray] = {"station_id": np.full(len(P), sid, dtype=object), "origin": idx[P],
+                                       "target_time": idx[P] + pd.to_timedelta(Hh, unit="h"), "h": Hh.astype(np.int8)}
+        org_vals = org.to_numpy(dtype=np.float64)[P]
+        cols.update({c: org_vals[:, j].astype(np.float32) for j, c in enumerate(org.columns)})
+        for part in (tgt, w_full):
+            vals = _at_target(part, tpos_c, inside)
+            cols.update({c: vals[:, j].astype(np.float32) for j, c in enumerate(part.columns)})
+        cols["total_ports"] = np.full(len(P), n_ports, dtype=np.float32)
+        cols["rated_kw_total"] = np.full(len(P), float(meta["rated_kw_total"]), dtype=np.float32)
+        cols["poi_category"] = np.full(len(P), str(meta["poi_category"]), dtype=object)
+        cols["y"] = _at_target(y.to_frame(), tpos_c, inside)[:, 0].astype(np.float32)
+        cols["occ_target"] = _at_target(occ.to_frame(), tpos_c, inside)[:, 0].astype(np.float32)
+        frames.append(pd.DataFrame(cols))
 
     if not frames:
         return pd.DataFrame(columns=[*registry.ID_COLUMNS, *registry.feature_names(), *registry.TARGET_COLUMNS])

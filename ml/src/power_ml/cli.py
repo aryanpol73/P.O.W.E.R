@@ -221,6 +221,14 @@ def train(source: Source = typer.Option(Source.palo_alto)) -> None:
     train_all(_root(), source.value, log=typer.echo)
 
 
+@app.command("train-lstm")
+def train_lstm_cmd(source: Source = typer.Option(Source.palo_alto)) -> None:
+    """Train M5 (Seq2Seq LSTM) and add it to the current artefact version. Needs `uv sync --extra dl`."""
+    from power_ml.training import train_lstm
+
+    train_lstm(_root(), source.value, log=typer.echo)
+
+
 @app.command()
 def evaluate(source: Source = typer.Option(Source.palo_alto),
              split: str = typer.Option("val", help="val | test | ood. The test split is logged on every run.")) -> None:
@@ -230,6 +238,28 @@ def evaluate(source: Source = typer.Option(Source.palo_alto),
     if split not in ("val", "test", "ood"):
         raise typer.BadParameter("split must be val, test or ood")
     run_eval(_root(), source.value, split, log=typer.echo)
+
+
+@app.command()
+def analyze(source: Source = typer.Option(Source.palo_alto),
+            part: str = typer.Option("all", help="all | shap | errors | stress")) -> None:
+    """SHAP explanations, error analysis and the COVID stress test -> reports/ and reports/figures/.
+
+    The stress test needs `power-ml evaluate --split ood` to have been run first.
+    """
+    from power_ml import analysis
+
+    if part in ("all", "shap"):
+        s = analysis.run_shap(_root(), source.value)
+        typer.echo(json.dumps({k: s[k] for k in ("additivity_max_abs_error_kwh", "top_features", "group_importance")}, indent=2))
+        for ex in s["local_examples"]:
+            typer.echo(ex["narrative"])
+    if part in ("all", "errors"):
+        typer.echo(json.dumps(analysis.run_error_analysis(_root(), source.value)["highlights"], indent=2, default=str))
+    if part in ("all", "stress"):
+        st = analysis.run_stress_test(_root(), source.value)
+        typer.echo(json.dumps({k: st[k] for k in ("cusum", "ood_start")}, indent=2, default=str))
+        typer.echo(f"seasonal PSI first alarm week: {st['seasonal_psi']['first_alarm_week']}")
 
 
 if __name__ == "__main__":

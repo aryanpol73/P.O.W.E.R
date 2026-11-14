@@ -33,6 +33,25 @@ OpenChargeMap ─────────┘   │  (replay, weather, forecast, 
 ```
 The full design is in [docs/02_system_blueprint.md](docs/02_system_blueprint.md). The methodology audit is in [docs/01_audit_and_refinement.md](docs/01_audit_and_refinement.md).
 
+## Pune pilot deployment (digital twin)
+
+The models are trained and scored on the Palo Alto open charging data, and every reported accuracy number
+comes from that data. The live console serves Pune instead (`configs/deployments/pune.yaml`):
+
+* **Sites:** 9 real charging-station locations in Pune from OpenStreetMap (Aundh, Baner, Deccan Gymkhana,
+  Erandwane, Kothrud, Karve Nagar, Sahakar Nagar). Each site keeps the port count and rating of the training
+  site it is paired with, so the capacity assumption and the alert thresholds mean the same thing.
+* **Demand:** each site replays the held-out demand of its paired training site, aligned on local
+  wall-clock time (08:00 Palo Alto becomes 08:00 IST). There is no public per-session Indian dataset to
+  replay instead.
+* **Context:** Pune's own observed weather (Open-Meteo archive), Indian and Maharashtra holidays, and IST.
+  Because IST is UTC+5:30, the hourly grid sits at :30 UTC.
+
+The serving engine maps site ids to the training ids before building features and maps them back
+afterwards, so no training-site id reaches the API or the UI. Live accuracy on the console therefore
+measures the models on a transferred demand profile, not on Indian drivers. Validating on Indian data is
+future work.
+
 ## Repository layout
 
 | Path | What |
@@ -54,8 +73,9 @@ The full design is in [docs/02_system_blueprint.md](docs/02_system_blueprint.md)
 | P0 | Monorepo scaffold, configs, CI | ✅ done |
 | P1 | Ingest (Palo Alto, ACN), anonymisation, cleaning, hourly resampling, Open-Meteo back-fill | ✅ done (run on real data pending) |
 | P2 | `power_core`: anchor-typed features, panel splits, metrics, DM test, conformal, drift, grid logic + leakage tests | ✅ done |
-| P3–P4 | Models, Optuna, calibration, evaluation, SHAP | ⏳ next |
-| P5–P7 | API, database, workers, PWA, MCP | ⏳ planned |
+| P3–P4 | 4 baselines + Ridge, RF, XGBoost, LightGBM (+ q05/q50/q95), LSTM, ensemble; Optuna; CQR; evaluation; SHAP; error analysis; COVID stress test | ✅ done |
+| P5 | Backend: database, FastAPI REST + WebSocket, serving engine, simulator + replay / forecast / alert / weather agents | ✅ done (SQLite; PostgreSQL supported but not yet run) |
+| P6–P7 | Next.js PWA, MCP server, retrain / drift / discovery agents | ⏳ next |
 
 What works today (Python 3.12 + `uv`):
 
@@ -67,7 +87,21 @@ uv run power-ml resample --source palo_alto
 uv run power-ml weather  --source palo_alto   # Open-Meteo archive, cached
 uv run power-ml panel    --source palo_alto
 uv run power-ml features --source palo_alto   # data/processed/features_palo_alto_{train,val,test,ood}.parquet
+uv run power-ml tune     --source palo_alto   # Optuna -> reports/tuning.json
+uv run power-ml train    --source palo_alto   # artifacts/models/<version>/
+uv run power-ml train-lstm --source palo_alto # needs: uv sync --extra dl
+uv run power-ml evaluate --source palo_alto --split test
+uv run power-ml analyze  --source palo_alto   # SHAP, error analysis, COVID stress test
 ```
+
+Backend (after the steps above):
+
+```bash
+uv run power-api seed                     # load stations, hourly history, weather into data/power.db (SQLite)
+uv run power-api serve                    # http://127.0.0.1:8000/docs ; simulator runs inside the API
+```
+Then `POST /api/v1/sim/control {"action": "play"}` starts the replay clock; `WS /ws/stream` streams events.
+Set `DATABASE_URL=postgresql+asyncpg://...` and `uv sync --extra postgres` for PostgreSQL.
 
 ## Prerequisites
 
@@ -76,17 +110,41 @@ uv run power-ml features --source palo_alto   # data/processed/features_palo_alt
 - Node.js 20+ with `pnpm` 9 (only for frontend development outside Docker)
 - Free API keys: **ACN-Data** token (if using ACN) and **OpenChargeMap** key (optional, context stations). Open-Meteo needs no key (non-commercial use).
 
-## Quick start (one command after data)
+## Quick start
+
+### Docker (production stack: TimescaleDB + API + PWA + MCP)
 
 ```bash
 git clone https://github.com/aryanpol73/P.O.W.E.R.git
 cd P.O.W.E.R
-cp .env.example .env            # fill keys if you have them
-make data                       # download datasets + weather archive, verify sha256
-make train                      # full offline pipeline (≈ 20–60 min on a laptop CPU)
-make up                         # db + api + worker + web + mcp
+cp .env.example .env            # set ADMIN_TOKEN and POSTGRES_PASSWORD
+# data/, artifacts/ and reports/ must exist: run the training pipeline ("Reproducible training") once
+docker compose up -d --build    # first start seeds PostgreSQL (about 30 s), then serves
 ```
-Open **http://localhost:3000** (PWA) and **http://localhost:8000/docs** (API).
+Open **http://localhost:3011** (PWA), **http://localhost:8011/docs** (API) and **http://localhost:8765/mcp**
+(MCP, streamable HTTP). Host ports are 3011/8011/5433/8765 by default so the stack can sit next to other
+local projects; change them with `POWER_WEB_PORT`, `POWER_API_PORT`, `POWER_DB_PORT` and `POWER_MCP_PORT`.
+
+* **db**: `timescale/timescaledb-ha:pg16`. `historical_telemetry`, `live_rolling_buffer`, `weather_hourly` and
+  `model_predictions` become hypertables automatically; seeding uses `COPY`.
+* **api**: one process with the embedded simulator and agents as the single writer. Data, models and
+  reports are mounted from the repo, not baked into the image. `POWER_TORCH=none` builds without PyTorch;
+  the LSTM is then skipped and every other model still serves.
+* **web**: Next.js standalone server. `NEXT_PUBLIC_API_URL` is baked at build time as the browser-facing
+  API address. The admin proxy reaches the API inside the network and adds `ADMIN_TOKEN` server-side.
+* **mcp**: read-only MCP server over the API.
+
+`docker compose down` stops the stack, and `docker compose down -v` also deletes the database volume.
+
+### Local development (no Docker)
+
+```bash
+uv sync --extra dl --extra postgres
+uv run power-api seed && uv run power-api serve --port 8011      # SQLite at data/power.db by default
+npm --prefix apps/web install && NEXT_PUBLIC_API_URL=http://127.0.0.1:8011 npm --prefix apps/web run dev -- -p 3011
+```
+To run the test suite on PostgreSQL: `docker compose up -d db`, create a `power_test` database, then set
+`POWER_TEST_DATABASE_URL=postgresql+asyncpg://power:power@127.0.0.1:5433/power_test uv run pytest`.
 
 ## Environment variables (`.env.example`)
 
@@ -95,6 +153,7 @@ Open **http://localhost:3000** (PWA) and **http://localhost:8000/docs** (API).
 | `DATABASE_URL` | `postgresql+asyncpg://power:power@db:5432/power` | Postgres + TimescaleDB |
 | `MODEL_VERSION` | `latest` | Registry version served |
 | `SIM_MODE` | `REPLAY` | `REPLAY` · `LIVE_SHADOW` · `LIVE` |
+| `POWER_DEPLOYMENT` | `pune` | live-console city profile in `configs/deployments/`; `none` = training sites |
 | `SIM_START` | first test-split hour | Replay start point |
 | `ADMIN_TOKEN` | — | Required for sim control / ack / retrain |
 | `MCP_READONLY_TOKEN` | — | Token the MCP server uses against the API |
@@ -103,7 +162,7 @@ Open **http://localhost:3000** (PWA) and **http://localhost:8000/docs** (API).
 | `OPEN_METEO_BASE` | `https://api.open-meteo.com/v1` | Forecast API |
 | `OPEN_METEO_ARCHIVE` | `https://archive-api.open-meteo.com/v1` | Archive API |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | — | Web Push (`make vapid` generates) |
-| `ANTHROPIC_API_KEY` | — | Optional in-app copilot; feature disabled when empty |
+| `GROQ_API_KEY` | — | Optional in-app copilot; feature disabled when empty |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Frontend → API |
 | `SEED` | `42` | Global determinism |
 
@@ -136,7 +195,7 @@ The test split is evaluated **once** by `make evaluate`. Re-running it with the 
 | Open-Meteo Archive / Forecast | Weather back-fill / live | Archive = observed (training); forecast = live serving |
 | OpenChargeMap | Context stations on map (cold-start priors only) | Not used in accuracy metrics |
 
-Transformer capacities are a **synthetic planning assumption** (`C = 0.7 × Σ port kW`, configurable). No public dataset publishes them.
+Transformer capacities are a **synthetic planning assumption** (`C = DF × Σ port kW`, DF = 1.0 by default and configurable). No public dataset publishes them.
 
 ## Tests
 
@@ -148,14 +207,74 @@ make lint         # ruff, mypy, eslint, tsc
 
 ## Using the MCP server
 
-Add to Claude Desktop / Claude Code MCP config:
+`services/mcp` is a read-only MCP server (MCP Python SDK v2) over the REST API, so an assistant quotes exactly the
+numbers the console shows. Start the API first (`uv run power-api serve --port 8011`), then add to Claude
+Desktop / Claude Code:
 ```json
 { "mcpServers": { "power": {
   "command": "uv",
-  "args": ["run", "--directory", "services/mcp", "power-mcp", "--transport", "stdio"],
-  "env": { "POWER_API_URL": "http://localhost:8000", "POWER_API_TOKEN": "<MCP_READONLY_TOKEN>" } } } }
+  "args": ["run", "--directory", "<repo>", "power-mcp"],
+  "env": { "POWER_API_URL": "http://127.0.0.1:8011" } } } }
 ```
-Try: *"Which stations are at risk in the next 24 hours, and what drives the peak at the worst one?"* or *"Simulate a +8 °C heatwave across the network."*
+For HTTP clients, run `uv run power-mcp --transport http`, which serves `http://127.0.0.1:8765/mcp`.
+
+| Tool | What it returns |
+|---|---|
+| `list_stations` | sites, ports, assumed transformer kW, current risk (filter by risk) |
+| `get_network_status` | KPI ribbon, simulation clock, deployment (city, time zone, twin), live champion |
+| `get_station_forecast` | next 1–24 h: q50, calibrated 90% interval, risk; the peak hour |
+| `explain_peak_shap` | TreeSHAP drivers in kWh that add up to the forecast |
+| `simulate_weather_shock` | what-if: baseline vs scenario peaks, sites at risk, out-of-range flags |
+| `compare_models` | test-set or rolling live leaderboard |
+| `get_alerts` | open/all alerts plus reroute suggestions |
+| `get_drift_report` | latest drift signals and whether a retrain is recommended |
+| `get_agent_status` | background agents, buffer freshness, live champion |
+
+Stations can be named loosely ("Westend", "deccan"). Resources: `power://datacard`, `power://deployment`,
+`power://models/leaderboard`, `power://stations/{id}`. Prompts: `grid_briefing`, `viva_explainer`.
+Guard-rails: read-only, 30 calls/min, bounded inputs, and identifying fields are scrubbed.
+
+Try: *"Which Pune sites are at risk in the next 12 hours, and what drives the peak at the worst one?"* or
+*"Simulate a +8 °C heatwave across the network. Is that inside the training range?"*
+
+## In-app copilot
+
+The chat button in the console opens a copilot: an LLM with exactly the MCP server's nine tools. It cannot reach
+the database, and every number it quotes comes from a tool call that it shows as it works. It runs on the MCP
+service (`POST /copilot`, a newline-delimited JSON stream). The browser reaches it through the web app's server
+route `/api/copilot`, so the provider key and `POWER_COPILOT_TOKEN` never reach the browser.
+
+| Provider (`POWER_COPILOT_PROVIDER`) | Key | Default model | Notes |
+|---|---|---|---|
+| `groq` (default when `GROQ_API_KEY` is set) | `GROQ_API_KEY` | `openai/gpt-oss-120b` | free tier; `POWER_COPILOT_EFFORT` sets reasoning effort |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` | effort `low`; server-side refusal fallback on |
+
+* Off until the selected provider has a key (the panel says so). `POWER_COPILOT_MODEL` overrides the model, and
+  an id from the other provider is ignored.
+* Conversation history is kept server-side and append-only. Limited to 10 questions/min and 8 tool rounds per
+  answer.
+
+## Web Push alerts
+
+"Notify me" on the alert feed (or on the Ops page) subscribes the device through the service worker. After
+each simulated hour that raises alerts, the API sends **one** notification per device covering all new alerts.
+Critical notifications stay on screen until dismissed, and clicking one opens the site. Devices choose
+CRITICAL-only (default) or WARNING and above. Endpoints that the push service reports gone are deleted.
+VAPID keys come from `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`, or are generated once into `data/vapid.json`.
+Push needs the production build (`docker compose up`, or `npm run build && npm start`), because the service
+worker is disabled in `next dev`. Ops → *Send test* checks delivery.
+
+## Background agents (Ops page)
+
+| Agent | Trigger | What it does |
+|---|---|---|
+| A1/A3/A6 pipeline | every simulated hour | replay telemetry, forecast with every model, alerts with hysteresis, reroutes |
+| A5 drift | each local midnight, or *Check now* | CUSUM on daily forecast bias (vs validation), seasonal PSI vs training demand, 90% coverage, live/test WAPE; retrain recommended when 2 or more fire |
+| A7 retrain | operator (*Retrain now*) | LightGBM quantile on the last 365 observed days, CQR recalibrated on the next 14 and both models shadow-scored on the final 7, which neither saw; promoted only if WAPE ≤ 0.98 × champion, PICP in [0.87, 0.93] and no site more than 10% worse. Frozen test artefacts are never changed; live forecasts carry a `+rt…` version tag; roll back with one click |
+| A8 discovery | start-up (at most daily), or *Discover now* | other public chargers in the city from OpenStreetMap, shown as grey unforecast pins |
+
+`GET /api/v1/agents/status` is the watchdog view (agents, buffer lag, last error); `GET /api/v1/drift` returns
+the drift history.
 
 ## Viva demo flow (≈ 8 minutes)
 

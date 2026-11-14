@@ -1,0 +1,330 @@
+{
+  "model": "M4_lightgbm_quantile",
+  "reference": "validation-period daily bias",
+  "cusum": {
+    "k": 0.5,
+    "h": 5.0,
+    "alarms": [
+      {
+        "date": "2019-09-11",
+        "split": "test",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2019-12-25",
+        "split": "test",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-01-06",
+        "split": "test",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-01-11",
+        "split": "test",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-03-08",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-14",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-16",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-18",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-19",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-21",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-23",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-25",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-27",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-03-28",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-01",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-03",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-06",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-10",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-14",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-15",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-04-24",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-04-30",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-07",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-11",
+        "split": "ood",
+        "direction": "over-forecast"
+      },
+      {
+        "date": "2020-05-13",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-16",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-17",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-25",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-27",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-29",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-05-31",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-01",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-06",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-07",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-11",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-16",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-19",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-20",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-22",
+        "split": "ood",
+        "direction": "under-forecast"
+      },
+      {
+        "date": "2020-06-27",
+        "split": "ood",
+        "direction": "under-forecast"
+      }
+    ],
+    "first_alarm_in_covid_period": "2020-03-08"
+  },
+  "seasonal_psi": {
+    "threshold": 0.2,
+    "first_alarm_week": "2020-03-16",
+    "weekly": {
+      "2019-09-09": 0.0249,
+      "2019-09-16": 0.046,
+      "2019-09-23": 0.0467,
+      "2019-09-30": 0.0653,
+      "2019-10-07": 0.0497,
+      "2019-10-14": 0.053,
+      "2019-10-21": 0.0684,
+      "2019-10-28": 0.0916,
+      "2019-11-04": 0.0768,
+      "2019-11-11": 0.0605,
+      "2019-11-18": 0.0622,
+      "2019-11-25": 0.0703,
+      "2019-12-02": 0.0566,
+      "2019-12-09": 0.0464,
+      "2019-12-16": 0.0428,
+      "2019-12-23": 0.1991,
+      "2019-12-30": 0.0438,
+      "2020-01-06": 0.1177,
+      "2020-01-13": 0.116,
+      "2020-01-20": 0.0227,
+      "2020-01-27": 0.0757,
+      "2020-02-03": 0.068,
+      "2020-02-10": 0.0739,
+      "2020-02-17": 0.0309,
+      "2020-02-24": 0.0402,
+      "2020-03-02": 0.0202,
+      "2020-03-09": 0.044,
+      "2020-03-16": 1.0484,
+      "2020-03-23": 1.399,
+      "2020-03-30": 1.741,
+      "2020-04-06": 1.423,
+      "2020-04-13": 1.325,
+      "2020-04-20": 1.7477,
+      "2020-04-27": 1.3525,
+      "2020-05-04": 1.6252,
+      "2020-05-11": 1.1532,
+      "2020-05-18": 1.1781,
+      "2020-05-25": 0.8154,
+      "2020-06-01": 0.8527,
+      "2020-06-08": 0.7899,
+      "2020-06-15": 0.5025,
+      "2020-06-22": 0.6048,
+      "2020-06-29": 1.2818
+    }
+  },
+  "ood_start": "2020-03-01",
+  "models": {
+    "B0_persistence": {
+      "wape_test": 1.1256,
+      "wape_ood": 1.4056,
+      "picp_test": 0.8803,
+      "picp_ood": 0.9858
+    },
+    "B1_seasonal_naive_24h": {
+      "wape_test": 0.6859,
+      "wape_ood": 1.1083,
+      "picp_test": 0.8922,
+      "picp_ood": 0.9778
+    },
+    "B2_seasonal_naive_168h": {
+      "wape_test": 0.6249,
+      "wape_ood": 1.135,
+      "picp_test": 0.8874,
+      "picp_ood": 0.9661
+    },
+    "B3_climatology": {
+      "wape_test": 0.58,
+      "wape_ood": 2.5627,
+      "picp_test": 0.8779,
+      "picp_ood": 0.8255
+    },
+    "M1_ridge": {
+      "wape_test": 0.5124,
+      "wape_ood": 1.1737,
+      "picp_test": 0.8864,
+      "picp_ood": 0.9602
+    },
+    "M2_random_forest": {
+      "wape_test": 0.5011,
+      "wape_ood": 1.2619,
+      "picp_test": 0.8883,
+      "picp_ood": 0.9638
+    },
+    "M3_xgboost": {
+      "wape_test": 0.4962,
+      "wape_ood": 1.0762,
+      "picp_test": 0.891,
+      "picp_ood": 0.9681
+    },
+    "M4_lightgbm": {
+      "wape_test": 0.4885,
+      "wape_ood": 1.0848,
+      "picp_test": 0.8911,
+      "picp_ood": 0.9677
+    },
+    "M4_lightgbm_quantile": {
+      "wape_test": 0.4676,
+      "wape_ood": 0.942,
+      "picp_test": 0.8925,
+      "picp_ood": 0.952
+    },
+    "M5_lstm": {
+      "wape_test": 0.5099,
+      "wape_ood": 1.2823,
+      "picp_test": 0.8771,
+      "picp_ood": 0.9708
+    },
+    "E1_ensemble": {
+      "wape_test": 0.4885,
+      "wape_ood": 1.0848,
+      "picp_test": 0.8911,
+      "picp_ood": 0.9677
+    }
+  },
+  "figure": "covid_stress_test.png"
+}

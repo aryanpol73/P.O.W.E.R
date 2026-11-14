@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date, timedelta
+from functools import lru_cache
 
 import holidays as holidays_lib
 import numpy as np
@@ -12,12 +13,24 @@ import pandas as pd
 TWO_PI = 2.0 * np.pi
 
 
-def _holiday_set(years: Sequence[int]) -> set[date]:
-    return set(holidays_lib.country_holidays("US", subdiv="CA", years=list(years)).keys())
+@lru_cache(maxsize=32)
+def _holiday_set_cached(years: tuple[int, ...], country: str, subdiv: str | None) -> frozenset[date]:
+    return frozenset(holidays_lib.country_holidays(country, subdiv=subdiv, years=list(years)).keys())
 
 
-def calendar_features(ts_utc: pd.DatetimeIndex, tz: str, pricing_changes: Sequence[str] = ()) -> pd.DataFrame:
-    """Return calendar features indexed by the given UTC hours."""
+def _holiday_set(years: Sequence[int], country: str = "US", subdiv: str | None = "CA") -> frozenset[date]:
+    """Public holidays (default US + California, the training data); cached because building the calendar
+    costs ~0.1 s per call. A deployment profile passes its own country, e.g. ("IN", "MH")."""
+    return _holiday_set_cached(tuple(years), country, subdiv)
+
+
+def calendar_features(
+    ts_utc: pd.DatetimeIndex,
+    tz: str,
+    pricing_changes: Sequence[str] = (),
+    holidays: tuple[str, str | None] = ("US", "CA"),
+) -> pd.DataFrame:
+    """Return calendar features indexed by the given UTC hours (local hour/day computed in ``tz``)."""
     if ts_utc.tz is None:
         raise ValueError("calendar_features expects a tz-aware UTC index")
     loc = ts_utc.tz_convert(tz)
@@ -28,7 +41,7 @@ def calendar_features(ts_utc: pd.DatetimeIndex, tz: str, pricing_changes: Sequen
 
     days = pd.Index(loc.date)
     years = range(min(d.year for d in days) - 1, max(d.year for d in days) + 2) if len(days) else range(2000, 2001)
-    hol = _holiday_set(years)
+    hol = _holiday_set(years, *holidays)
     is_hol = np.fromiter((d in hol for d in days), dtype=bool, count=len(days))
     is_wkend = dow >= 5
 

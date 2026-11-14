@@ -1,0 +1,3 @@
+group,n,mean_y,wape_M4_lightgbm_quantile,wape_M4_lightgbm,wape_B1_seasonal_naive_24h,wape_B3_climatology
+not saturated,781521,6.705,0.4707,0.4924,0.6941,0.5841
+saturated,5007,27.136,0.3498,0.3398,0.3689,0.4225

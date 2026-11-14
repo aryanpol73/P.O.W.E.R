@@ -1,0 +1,33 @@
+[project]
+name = "power-api"
+version = "0.1.0"
+description = "P.O.W.E.R. backend: FastAPI REST + WebSocket, model serving, real-time agents"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "power-core",
+    "power-ml",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "aiosqlite>=0.20",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    "pywebpush>=2.0",   # Web Push (VAPID) for critical grid alerts
+]
+
+[project.optional-dependencies]
+postgres = ["asyncpg>=0.29", "psycopg[binary]>=3.2"]
+
+[project.scripts]
+power-api = "power_api.cli:app"
+
+[tool.uv.sources]
+power-core = { workspace = true }
+power-ml = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/power_api"]
