@@ -59,7 +59,56 @@ def _call(method: str, path: str, **kw: Any) -> Any:
         except ValueError:
             detail = r.text
         raise RuntimeError(f"API {r.status_code} on {path}: {detail}")
-    return scrub(r.json())
+    data = scrub(r.json())
+    return data if path == "/deployment" else localize(data)
+
+
+# Timestamps the API returns in UTC; every one also gets a "<key>_local" twin in the deployment's time zone,
+# so no client (or model) has to do time-zone arithmetic.
+TIME_KEYS = {"target_time", "forecast_origin", "sim_now", "raised_at", "resolved_at", "as_of", "detected_at",
+             "latest_at", "newest_hour", "peak_time"}
+_tz: tuple[str, str] | None = None
+
+
+def _deployment_tz() -> tuple[str, str] | None:
+    global _tz
+    if _tz is None:
+        try:
+            name = _call("GET", "/deployment").get("timezone") or "UTC"
+        except Exception:  # noqa: BLE001 - local times are a convenience; UTC stays authoritative
+            return None
+        _tz = (name, "IST" if name == "Asia/Kolkata" else name)
+    return _tz
+
+
+def localize(obj: Any) -> Any:
+    tz = _deployment_tz()
+    if tz is None:
+        return obj
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo(tz[0])
+
+    def conv(v: Any) -> str | None:
+        try:
+            return datetime.fromisoformat(str(v).replace("Z", "+00:00")).astimezone(zone).strftime("%Y-%m-%d %H:%M ") + tz[1]
+        except (TypeError, ValueError):
+            return None
+
+    def walk(o: Any) -> Any:
+        if isinstance(o, list):
+            return [walk(x) for x in o]
+        if not isinstance(o, dict):
+            return o
+        out = {}
+        for k, v in o.items():
+            out[k] = walk(v)
+            if k in TIME_KEYS and isinstance(v, str) and (loc := conv(v)):
+                out[f"{k}_local"] = loc
+        return out
+
+    return walk(obj)
 
 
 def _get(path: str, **params: Any) -> Any:
@@ -128,16 +177,20 @@ def get_station_forecast(
         "model": f["model"],
         "model_version": f["model_version"],
         "forecast_origin": f["forecast_origin"],
+        "forecast_origin_local": f.get("forecast_origin_local"),
         "transformer_kw_assumed": f["transformer_kw"],
         "peak": peak,
-        "points": [{k: p[k] for k in ("target_time", "h", "q05", "q50", "q95", "risk")} for p in pts],
+        "points": [{k: p[k] for k in ("target_time", "target_time_local", "h", "q05", "q50", "q95", "risk") if k in p}
+                   for p in pts],
     }
 
 
 @mcp.tool()
 def explain_peak_shap(
     station: Annotated[str, Field(description="station id or part of its name")],
-    horizon_h: Annotated[int | None, Field(ge=1, le=24, description="hours ahead; default = the forecast peak")] = None,
+    horizon_h: Annotated[int | None, Field(ge=1, le=24, description=(
+        "hours after the forecast origin (1 = the next hour). Omit to explain the highest forecast in the next 24 h. "
+        "To pick an hour, read forecast_origin_local / target_time_local from get_station_forecast first."))] = None,
     top_k: Annotated[int, Field(ge=1, le=8)] = 6,
 ) -> dict[str, Any]:
     """Why the champion forecasts what it does: TreeSHAP contributions in kWh that add up to the forecast."""
@@ -148,6 +201,7 @@ def explain_peak_shap(
     return {
         "station_id": sid,
         "target_time": e["target_time"],
+        "target_time_local": e.get("target_time_local"),
         "h": e["h"],
         "base_value_kwh": e["base_value"],
         "prediction_kwh": e["prediction"],
@@ -322,9 +376,9 @@ def _copilot_authorized(request: Any) -> bool:
 async def copilot_status(request: Any) -> Any:
     from starlette.responses import JSONResponse
 
-    from power_mcp.copilot import EFFORT, MODEL, enabled
+    from power_mcp.copilot import status
 
-    return JSONResponse({"enabled": enabled(), "model": MODEL, "effort": EFFORT})
+    return JSONResponse(status())
 
 
 @mcp.custom_route("/copilot", methods=["POST"])
@@ -337,7 +391,8 @@ async def copilot_chat(request: Any) -> Any:
     if not _copilot_authorized(request):
         return JSONResponse({"detail": "copilot token required"}, status_code=401)
     if not enabled():
-        return JSONResponse({"detail": "copilot disabled: set GROQ_API_KEY on the MCP service"}, status_code=503)
+        detail = "copilot disabled: set GROQ_API_KEY (or ANTHROPIC_API_KEY) on the MCP service"
+        return JSONResponse({"detail": detail}, status_code=503)
     body = await request.json()
     text = str(body.get("message", "")).strip()[:4000]
     if not text:

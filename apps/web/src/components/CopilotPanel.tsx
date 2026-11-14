@@ -28,6 +28,42 @@ const SUGGESTIONS = [
   "Which model is most accurate, on the test set and live?",
 ];
 
+/** Minimal, injection-safe rendering of the model's text: **bold** and "-" / "*" bullets (React escapes the rest). */
+function Inline({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((p, i) => (p.startsWith("**") && p.endsWith("**") && p.length > 4 ? <strong key={i}>{p.slice(2, -2)}</strong> : p))}
+    </>
+  );
+}
+
+function RichText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1 leading-relaxed">
+      {lines.map((raw, i) => {
+        const m = raw.match(/^(\s*)[-*•]\s+(.*)$/);
+        if (m) {
+          return (
+            <div key={i} className="flex gap-1.5" style={{ paddingLeft: m[1].length > 1 ? 12 : 0 }}>
+              <span className="text-muted">•</span>
+              <span className="min-w-0">
+                <Inline text={m[2]} />
+              </span>
+            </div>
+          );
+        }
+        return raw.trim() ? (
+          <p key={i}>
+            <Inline text={raw} />
+          </p>
+        ) : null;
+      })}
+    </div>
+  );
+}
+
 export function CopilotPanel() {
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -42,7 +78,10 @@ export function CopilotPanel() {
     enabled: open,
   });
 
-  useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [turns]);
+  useEffect(() => {
+    // Block body on purpose: newer browsers return a Promise from scroll methods, and React would call it as cleanup.
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [turns]);
 
   const patchLast = (f: (t: Turn) => Turn) => setTurns((ts) => [...ts.slice(0, -1), f(ts[ts.length - 1])]);
 
@@ -146,7 +185,7 @@ export function CopilotPanel() {
                       ))}
                     </ul>
                   )}
-                  {t.text && <div className="whitespace-pre-wrap leading-relaxed">{t.text}</div>}
+                  {t.text && <RichText text={t.text} />}
                   {!t.text && !t.error && t.role === "assistant" && busy && i === turns.length - 1 && (
                     <Loader2 size={14} className="animate-spin text-muted" />
                   )}

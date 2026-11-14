@@ -239,18 +239,20 @@ Try: *"Which Pune sites are at risk in the next 12 hours, and what drives the pe
 
 ## In-app copilot
 
-The chat button in the console opens a copilot. It is Claude (`claude-opus-5-5`, effort `low`) with exactly the
-MCP server's nine tools, so it cannot reach the database and every number it quotes comes from a tool call
-it shows as it works. It runs on the MCP service (`POST /copilot`, a newline-delimited JSON stream), and the
-browser reaches it through the web app's server route `/api/copilot`. `GROQ_API_KEY` and
-`POWER_COPILOT_TOKEN` never reach the browser.
+The chat button in the console opens a copilot: an LLM with exactly the MCP server's nine tools. It cannot reach
+the database, and every number it quotes comes from a tool call that it shows as it works. It runs on the MCP
+service (`POST /copilot`, a newline-delimited JSON stream). The browser reaches it through the web app's server
+route `/api/copilot`, so the provider key and `POWER_COPILOT_TOKEN` never reach the browser.
 
-* Off until `GROQ_API_KEY` is set on the MCP service (the panel says so).
-* Server-side refusal fallback (`fallbacks: "default"`) is on, so a declined request is retried on a fallback
-  model within the same call.
+| Provider (`POWER_COPILOT_PROVIDER`) | Key | Default model | Notes |
+|---|---|---|---|
+| `groq` (default when `GROQ_API_KEY` is set) | `GROQ_API_KEY` | `openai/gpt-oss-120b` | free tier; `POWER_COPILOT_EFFORT` sets reasoning effort |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` | effort `low`; server-side refusal fallback on |
+
+* Off until the selected provider has a key (the panel says so). `POWER_COPILOT_MODEL` overrides the model, and
+  an id from the other provider is ignored.
 * Conversation history is kept server-side and append-only. Limited to 10 questions/min and 8 tool rounds per
   answer.
-* Change the model or effort with `POWER_COPILOT_MODEL` / `POWER_COPILOT_EFFORT`.
 
 ## Web Push alerts
 

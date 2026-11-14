@@ -7,7 +7,8 @@ dependencies = [
     "mcp>=2.3,<3",
     "httpx>=0.27",
     "pydantic>=2.7",
-    "anthropic>=2.8,<3",   # in-app copilot (Claude + the same tools)
+    "anthropic>=2.8,<3",   # in-app copilot, provider "anthropic" (Claude + the same tools)
+    "groq>=0.30",          # in-app copilot, provider "groq" (free tier)
 ]
 
 [project.scripts]
