@@ -52,6 +52,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db = make_async_engine(settings.db_url)
         maker = sessionmaker_for(db)
+        async with db.begin() as conn:  # add tables introduced since the database was seeded (idempotent)
+            await conn.run_sync(m.Base.metadata.create_all)
         async with maker() as s:
             n = (await s.execute(select(func.count()).select_from(m.Station))).scalar_one()
         if n == 0:
