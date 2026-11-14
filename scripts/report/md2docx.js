@@ -5,7 +5,7 @@ const d = require("docx");
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell,
   WidthType, ShadingType, BorderStyle, LevelFormat, PageBreak, TableOfContents, Footer, Header,
-  PageNumber, MathRun, MathFraction, MathRadical, MathSubScript, MathSuperScript,
+  PageNumber, ImageRun, MathRun, MathFraction, MathRadical, MathSubScript, MathSuperScript,
   MathSubSuperScript, MathSum,
 } = d;
 const OMath = d.Math;
@@ -13,6 +13,30 @@ const OMath = d.Math;
 const [, , IN, OUT, MODE] = process.argv;
 const src = fs.readFileSync(IN, "utf8").replace(/\r/g, "");
 const lines = src.split("\n");
+const path = require("path");
+const BASE = path.dirname(path.resolve(IN));
+
+// PNG width/height from the IHDR chunk (bytes 16..23, big-endian).
+function pngSize(buf) {
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+// "![Caption](relative/or/absolute.png)" on its own line -> centred image (max 6.2 in wide) + italic caption.
+function figure(caption, file) {
+  const full = path.isAbsolute(file) ? file : path.resolve(BASE, file);
+  if (!fs.existsSync(full)) {
+    return [new Paragraph({ children: [new TextRun({ text: `[missing figure: ${file}]`, color: "C00000", font: FONT })] })];
+  }
+  const data = fs.readFileSync(full);
+  const { w, h } = pngSize(data);
+  const maxW = 595; // px at 96 dpi = 6.2 in, fits A4 with 1 in margins
+  const scale = Math.min(1, maxW / w);
+  return [
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 60 }, keepNext: true,
+      children: [new ImageRun({ type: "png", data, transformation: { width: Math.round(w * scale), height: Math.round(h * scale) } })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 200 },
+      children: inline(caption, { italics: true, size: 18, color: "404040" }) }),
+  ];
+}
 
 const FONT = "Calibri";
 const MONO = "Consolas";
@@ -154,12 +178,10 @@ function table(rows) {
 // ---------- title page ----------
 function titlePage() {
   const P = (text, opts = {}) => new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: opts.before ?? 0, after: opts.after ?? 120 }, children: [new TextRun({ text, font: FONT, size: opts.size ?? 24, bold: opts.bold, color: opts.color, italics: opts.italics })] });
+  // Add a row per team member if the project is done in a group.
   const team = [
     ["Name", "Roll No.", "Role"],
-    ["⟨Member 1⟩", "⟨ ⟩", "Data & feature engineering"],
-    ["⟨Member 2⟩", "⟨ ⟩", "Modelling & evaluation"],
-    ["⟨Member 3⟩", "⟨ ⟩", "Backend & real-time systems"],
-    ["⟨Member 4⟩", "⟨ ⟩", "Frontend, XAI & MCP"],
+    ["Aryan Pol", "⟨Roll No.⟩", "Data, models, evaluation, system and report"],
   ];
   return [
     P("B.Tech Credit-Based Machine Learning Course · Project Bank #41", { before: 1600, size: 22, color: "595959" }),
@@ -210,6 +232,10 @@ while (i < lines.length) {
     children.push(new Paragraph({ spacing: { before: 0, after: 120 }, children: [] }));
     continue;
   }
+
+  // figure
+  const fm = /^!\[(.*)\]\((.+)\)$/.exec(t);
+  if (fm) { children.push(...figure(fm[1], fm[2])); i++; continue; }
 
   // equation
   if (t.startsWith("$$") && t.endsWith("$$") && t.length > 4) { children.push(equation(t.slice(2, -2))); i++; continue; }
