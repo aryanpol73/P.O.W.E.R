@@ -237,6 +237,31 @@ Guard-rails: read-only, 30 calls/min, bounded inputs, and identifying fields are
 Try: *"Which Pune sites are at risk in the next 12 hours, and what drives the peak at the worst one?"* or
 *"Simulate a +8 °C heatwave across the network. Is that inside the training range?"*
 
+## In-app copilot
+
+The chat button in the console opens a copilot. It is Claude (`claude-opus-5-5`, effort `low`) with exactly the
+MCP server's nine tools, so it cannot reach the database and every number it quotes comes from a tool call
+it shows as it works. It runs on the MCP service (`POST /copilot`, a newline-delimited JSON stream), and the
+browser reaches it through the web app's server route `/api/copilot`. `ANTHROPIC_API_KEY` and
+`POWER_COPILOT_TOKEN` never reach the browser.
+
+* Off until `ANTHROPIC_API_KEY` is set on the MCP service (the panel says so).
+* Server-side refusal fallback (`fallbacks: "default"`) is on, so a declined request is retried on a fallback
+  model within the same call.
+* Conversation history is kept server-side and append-only. Limited to 10 questions/min and 8 tool rounds per
+  answer.
+* Change the model or effort with `POWER_COPILOT_MODEL` / `POWER_COPILOT_EFFORT`.
+
+## Web Push alerts
+
+"Notify me" on the alert feed (or on the Ops page) subscribes the device through the service worker. After
+each simulated hour that raises alerts, the API sends **one** notification per device covering all new alerts.
+Critical notifications stay on screen until dismissed, and clicking one opens the site. Devices choose
+CRITICAL-only (default) or WARNING and above. Endpoints that the push service reports gone are deleted.
+VAPID keys come from `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`, or are generated once into `data/vapid.json`.
+Push needs the production build (`docker compose up`, or `npm run build && npm start`), because the service
+worker is disabled in `next dev`. Ops → *Send test* checks delivery.
+
 ## Background agents (Ops page)
 
 | Agent | Trigger | What it does |

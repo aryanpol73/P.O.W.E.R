@@ -12,6 +12,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "pydantic-settings>=2.4",
     "httpx>=0.27",
+    "pywebpush>=2.0",   # Web Push (VAPID) for critical grid alerts
 ]
 
 [project.optional-dependencies]

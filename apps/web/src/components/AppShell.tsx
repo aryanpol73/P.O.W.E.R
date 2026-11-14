@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import { api } from "@/lib/api";
 
+import { CopilotPanel } from "./CopilotPanel";
 import { SimControls } from "./SimControls";
 
 const NAV = [
@@ -71,6 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SimControls />
         </header>
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 md:px-6">{children}</main>
+        <CopilotPanel />
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-border bg-surface md:hidden">

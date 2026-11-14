@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from power_api import repo
+from power_api import push, repo
 from power_api.agents import alerts as alerts_mod
 from power_api.agents import base, forecaster, replay
 from power_api.agents import drift as drift_agent
@@ -42,6 +42,23 @@ class Simulator:
         self._lock = asyncio.Lock()
         self._task: asyncio.Task[None] | None = None
         self.last_error: str | None = None
+        self._push_tasks: set[asyncio.Task[Any]] = set()
+        self._vapid: push.VapidKeys | None = None
+
+    def vapid(self) -> push.VapidKeys:
+        if self._vapid is None:
+            self._vapid = push.load_keys(self.settings.repo_root)
+        return self._vapid
+
+    async def _push(self, raised: list[dict[str, Any]]) -> None:
+        try:
+            async with self.maker() as s:
+                res = await push.notify(s, self.vapid(), raised)
+                await s.commit()
+            if res["sent"] or res["removed"]:
+                log.info("web push: %s", res)
+        except Exception:  # noqa: BLE001 - notifications are best-effort
+            log.exception("web push failed")
 
     # ------------------------------------------------------------------ setup
     def _grid_minute(self) -> int:
@@ -117,6 +134,10 @@ class Simulator:
         await self.bus.publish("forecast", "forecast.updated", {"forecast_origin": origin, "latency_ms": round(fc.latency_ms, 1)})
         for a in res["raised"]:
             await self.bus.publish("alerts", "alert.raised", a)
+        if res["raised"] and self.settings.push_enabled:
+            # Web Push off the pipeline's critical path; a slow push service never delays the next tick.
+            self._push_tasks.add(t := asyncio.create_task(self._push(res["raised"])))
+            t.add_done_callback(self._push_tasks.discard)
         if res["resolved"]:
             await self.bus.publish("alerts", "alert.resolved", {"alert_ids": res["resolved"]})
         if res["reroutes"]:

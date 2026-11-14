@@ -7,6 +7,7 @@ const API = (process.env.POWER_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "ht
 const ALLOWED = [
   /^sim\/(control|tick)$/,
   /^alerts\/\d+\/ack$/,
+  /^push\/test$/,
   /^agents\/(drift\/run|discovery\/run|retrain|retrain\/rollback|retrain\/[A-Za-z0-9]+\/activate)$/,
 ];
 

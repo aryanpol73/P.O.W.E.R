@@ -23,6 +23,11 @@ x-api-env: &api-env
   ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
   CORS_ORIGINS: http://localhost:${POWER_WEB_PORT:-3011},http://127.0.0.1:${POWER_WEB_PORT:-3011}
   POWER_DISCOVERY: ${POWER_DISCOVERY:-true}
+  POWER_PUSH: ${POWER_PUSH:-true}
+  # Web Push keys (base64url). Empty = generated once into data/vapid.json.
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@localhost}
 
 services:
   db:
@@ -71,6 +76,8 @@ services:
         NEXT_PUBLIC_API_URL: http://localhost:${POWER_API_PORT:-8011}
     environment:
       POWER_API_URL: http://api:8000         # server-side admin proxy, inside the compose network
+      POWER_MCP_URL: http://mcp:8765         # server-side copilot proxy
+      POWER_COPILOT_TOKEN: ${POWER_COPILOT_TOKEN:-change-me-too}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
     depends_on:
       api: {condition: service_healthy}
@@ -83,6 +90,11 @@ services:
       dockerfile: services/mcp/Dockerfile
     environment:
       POWER_API_URL: http://api:8000
+      # In-app copilot: Claude with the same tools. Off when no key is set.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      POWER_COPILOT_TOKEN: ${POWER_COPILOT_TOKEN:-change-me-too}
+      POWER_COPILOT_MODEL: ${POWER_COPILOT_MODEL:-claude-opus-5-5}
+      POWER_COPILOT_EFFORT: ${POWER_COPILOT_EFFORT:-low}
     command: ["power-mcp", "--transport", "http", "--host", "0.0.0.0", "--port", "8765"]
     depends_on:
       api: {condition: service_healthy}

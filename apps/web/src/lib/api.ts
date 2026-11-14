@@ -317,6 +317,12 @@ export const api = {
   ack: (id: number) => admin<{ alert_id: number; status: string }>(`alerts/${id}/ack`),
   figure: (name: string) => `${API_URL}/figures/${name}`,
   agents: () => get<AgentsStatus>("/agents/status"),
+  vapidKey: () => get<{ public_key: string; enabled: boolean }>("/push/vapid-public-key"),
+  subscribePush: (subscription: PushSubscriptionJSON, min_level: "CRITICAL" | "WARNING") =>
+    request<{ subscribed: boolean }>(`${API_URL}/api/v1/push/subscribe`, { method: "POST", body: JSON.stringify({ subscription, min_level }) }),
+  unsubscribePush: (endpoint: string) =>
+    request<{ removed: number }>(`${API_URL}/api/v1/push/unsubscribe`, { method: "POST", body: JSON.stringify({ endpoint }) }),
+  testPush: () => admin<{ subscriptions: number; accepted: number }>("push/test"),
   drift: (days = 14) => get<DriftReport>(`/drift?days=${days}`),
   retrainRuns: () => get<{ active: string | null; runs: RetrainRun[] }>("/agents/retrain/runs"),
   runDrift: () => admin<Record<string, unknown>>("agents/drift/run"),

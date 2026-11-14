@@ -17,7 +17,7 @@ from power_api.agents import discovery as discovery_agent
 from power_api.bus import InProcessBus
 from power_api.db import models as m
 from power_api.db.session import make_async_engine, sessionmaker_for, utcnow
-from power_api.routers import agents, api, ws
+from power_api.routers import agents, api, push, ws
 from power_api.serving.engine import ServingEngine
 from power_api.settings import Settings, get_settings
 from power_api.simulator import Simulator
@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(api.router, prefix="/api/v1")
     app.include_router(agents.router, prefix="/api/v1")
+    app.include_router(push.router, prefix="/api/v1")
     app.include_router(ws.router)
     figures = settings.repo_root / "reports" / "figures"
     if figures.is_dir():  # report figures (SHAP, error analysis, stress test) for the Insights page

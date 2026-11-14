@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     deployment_name: str = Field(default="pune", alias="POWER_DEPLOYMENT")
     # A8: look up other public chargers on OpenStreetMap at start-up (at most once a day).
     discovery_on_start: bool = Field(default=True, alias="POWER_DISCOVERY")
+    push_enabled: bool = Field(default=True, alias="POWER_PUSH")  # Web Push for new grid alerts
 
     @property
     def deployment(self) -> Deployment | None:

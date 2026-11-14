@@ -173,3 +173,16 @@ class DriftLog(Base):
     threshold: Mapped[float] = mapped_column(Float)
     is_drift: Mapped[bool] = mapped_column(Boolean)
     details: Mapped[dict | None] = mapped_column(JSON)
+
+
+class PushSubscription(Base):
+    """A browser's Web Push subscription (endpoint + encryption keys) and the lowest alert level it wants."""
+
+    __tablename__ = "push_subscriptions"
+    endpoint: Mapped[str] = mapped_column(String(1024), primary_key=True)
+    p256dh: Mapped[str] = mapped_column(String(256))
+    auth: Mapped[str] = mapped_column(String(64))
+    min_level: Mapped[str] = mapped_column(String(16), default="CRITICAL")  # CRITICAL | WARNING
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+    failures: Mapped[int] = mapped_column(Integer, default=0)

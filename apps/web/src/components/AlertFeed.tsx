@@ -8,6 +8,8 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { fmtTime, prettyStation } from "@/lib/format";
 
+import { PushToggle } from "./PushToggle";
+
 export function AlertFeed() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["alerts"], queryFn: () => api.alerts("open") });
@@ -17,7 +19,8 @@ export function AlertFeed() {
     <div className="card flex min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold">
         <BellRing size={15} /> Open alerts
-        <span className="ml-auto rounded-full bg-surface-2 px-2 text-xs font-normal text-muted">{data?.length ?? 0}</span>
+        <span className="rounded-full bg-surface-2 px-2 text-xs font-normal text-muted">{data?.length ?? 0}</span>
+        <PushToggle className="ml-auto font-normal" />
       </div>
       <ul className="max-h-[320px] divide-y divide-border overflow-y-auto">
         {isLoading && <li className="px-4 py-3 text-sm text-muted">Loading…</li>}

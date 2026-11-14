@@ -10,6 +10,7 @@ Run:   uv run power-mcp                      # stdio (Claude Desktop / Claude Co
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from typing import Annotated, Any, Literal
 
@@ -297,6 +298,56 @@ def viva_explainer(station: str) -> str:
         "risk level means for the grid. State that transformer ratings are an assumption, and if get_network_status "
         "shows a digital twin, say that demand is replayed from the training data."
     )
+
+
+# ------------------------------------------------------------------ in-app copilot (HTTP transport only)
+_copilot = None
+
+
+def copilot():  # type: ignore[no-untyped-def]
+    global _copilot
+    if _copilot is None:
+        from power_mcp.copilot import Copilot
+
+        _copilot = Copilot(mcp)
+    return _copilot
+
+
+def _copilot_authorized(request: Any) -> bool:
+    token = os.environ.get("POWER_COPILOT_TOKEN", "")
+    return not token or request.headers.get("authorization") == f"Bearer {token}"
+
+
+@mcp.custom_route("/copilot/status", methods=["GET"])
+async def copilot_status(request: Any) -> Any:
+    from starlette.responses import JSONResponse
+
+    from power_mcp.copilot import EFFORT, MODEL, enabled
+
+    return JSONResponse({"enabled": enabled(), "model": MODEL, "effort": EFFORT})
+
+
+@mcp.custom_route("/copilot", methods=["POST"])
+async def copilot_chat(request: Any) -> Any:
+    """Newline-delimited JSON events: conversation, text, tool_call, tool_result, done | error."""
+    from starlette.responses import JSONResponse, StreamingResponse
+
+    from power_mcp.copilot import enabled
+
+    if not _copilot_authorized(request):
+        return JSONResponse({"detail": "copilot token required"}, status_code=401)
+    if not enabled():
+        return JSONResponse({"detail": "copilot disabled: set ANTHROPIC_API_KEY on the MCP service"}, status_code=503)
+    body = await request.json()
+    text = str(body.get("message", "")).strip()[:4000]
+    if not text:
+        return JSONResponse({"detail": "message is required"}, status_code=422)
+
+    async def events():  # type: ignore[no-untyped-def]
+        async for ev in copilot().chat(body.get("conversation_id"), text):
+            yield json.dumps(ev, default=str) + "\n"
+
+    return StreamingResponse(events(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"})
 
 
 def main() -> None:

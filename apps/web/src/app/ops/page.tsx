@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { CheckCircle2, CircleAlert, Loader2, MapPinned, RefreshCw, RotateCcw, Search, XCircle } from "lucide-react";
 import { useState } from "react";
 
+import { PushToggle } from "@/components/PushToggle";
 import { api, type DriftItem, type RetrainRun } from "@/lib/api";
 import { fmtNum, fmtTime } from "@/lib/format";
 
@@ -248,6 +249,26 @@ export default function OpsPage() {
         >
           <MapPinned size={13} /> Discover now
         </button>
+      </section>
+
+      <section className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+        <div>
+          <h2 className="font-semibold">Alert notifications</h2>
+          <p className="text-xs text-muted">
+            Web Push to this device when the pipeline raises new alerts: one notification per simulated hour, critical
+            alerts stay on screen until dismissed.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <PushToggle level="WARNING" />
+          <button
+            onClick={() => act.mutate(api.testPush)}
+            disabled={act.isPending}
+            className="rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
+          >
+            Send test
+          </button>
+        </div>
       </section>
 
       {st && (

@@ -35,3 +35,42 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// ------------------------------------------------------------------ Web Push (grid alerts)
+type PushPayload = { title?: string; body?: string; url?: string; tag?: string; level?: string };
+
+self.addEventListener("push", (event: PushEvent) => {
+  let p: PushPayload = {};
+  try {
+    p = event.data?.json() ?? {};
+  } catch {
+    p = { body: event.data?.text() };
+  }
+  event.waitUntil(
+    self.registration.showNotification(p.title ?? "P.O.W.E.R. grid alert", {
+      body: p.body ?? "",
+      tag: p.tag ?? "power-alert", // a newer alert replaces the older one instead of stacking
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-maskable-192.png",
+      requireInteraction: p.level === "CRITICAL",
+      data: { url: p.url ?? "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
+  event.notification.close();
+  const url = new URL((event.notification.data?.url as string) ?? "/", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const w of wins) {
+        if ("focus" in w) {
+          await (w as WindowClient).navigate(url).catch(() => undefined);
+          return (w as WindowClient).focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});
