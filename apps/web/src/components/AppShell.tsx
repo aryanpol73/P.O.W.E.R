@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Activity, BarChart3, Bot, FlaskConical, LayoutDashboard, Lightbulb, Zap } from "lucide-react";
+import { Activity, BarChart3, Bot, FlaskConical, LayoutDashboard, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 
 import { CopilotPanel } from "./CopilotPanel";
+import { InstallApp } from "./InstallApp";
 import { SimControls } from "./SimControls";
 
 const NAV = [
@@ -30,9 +31,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:grid md:grid-cols-[220px_1fr]">
       <aside className="hidden border-r border-border bg-surface md:flex md:flex-col">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-b from-[var(--accent-hi)] to-accent text-accent-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_6px_16px_-6px_var(--accent)]">
-            <Zap size={18} strokeWidth={2.25} />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icons/logo.png" alt="P.O.W.E.R. logo" width={36} height={36} className="size-9 rounded-[10px] shadow-[0_6px_16px_-6px_rgba(34,197,94,0.55)]" />
           <div>
             <div className="text-sm font-semibold tracking-[0.06em]">P.O.W.E.R.</div>
             <div className="text-[11px] text-muted">{dep.data?.city ? `${dep.data.city} EV grid console` : "EV grid console"}</div>
@@ -56,7 +56,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto border-t border-divider px-5 py-4 text-[11px] leading-relaxed text-muted">
+        <div className="mt-auto">
+          <InstallApp variant="sidebar" />
+        </div>
+        <div className="border-t border-divider px-5 py-4 text-[11px] leading-relaxed text-muted">
           {dep.data?.is_twin ? (
             <>
               <span className="mb-1.5 inline-flex items-center rounded-md border border-warn/40 bg-warn/12 px-1.5 py-0.5 font-semibold text-warn">Pilot digital twin</span>
@@ -76,6 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 md:px-6">{children}</main>
         <CopilotPanel />
+        <InstallApp variant="banner" />
       </div>
 
       <nav className="glass fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-border pb-[env(safe-area-inset-bottom)] md:hidden">

@@ -1,18 +1,27 @@
 {
+  "id": "/",
   "name": "P.O.W.E.R. Grid Console",
   "short_name": "P.O.W.E.R.",
-  "description": "Real-time EV charging demand forecasts, overload alerts and explanations.",
+  "description": "Real-time EV charging demand forecasts, overload alerts and explanations for the Pune pilot.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
-  "background_color": "#0b1220",
-  "theme_color": "#1f4fd1",
-  "categories": ["utilities", "productivity"],
+  "background_color": "#022328",
+  "theme_color": "#022328",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["utilities", "productivity", "business"],
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Command Center", "url": "/", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Stations", "url": "/stations", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Ops", "url": "/ops", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

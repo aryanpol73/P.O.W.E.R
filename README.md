@@ -1,6 +1,8 @@
 <div align="center">
 
-# ⚡ P.O.W.E.R.
+<img src="apps/web/public/icons/icon-512.png" alt="P.O.W.E.R. logo" width="128" />
+
+# P.O.W.E.R.
 
 ### Predictive Optimization of Wattage for EV Resources
 
@@ -25,18 +27,18 @@
 
 1. [Problem statement](#-problem-statement)
 2. [Solution at a glance](#-solution-at-a-glance)
-3. [Results](#-results)
-4. [Approach](#-approach)
-5. [System architecture](#-system-architecture)
-6. [Features of the console](#-features-of-the-console)
-7. [Pune pilot deployment](#-pune-pilot-deployment-digital-twin)
-8. [Tech stack](#-tech-stack)
-9. [Repository structure](#-repository-structure)
-10. [Getting started](#-getting-started)
-11. [Configuration](#-configuration)
-12. [Reproducing the results](#-reproducing-the-results)
-13. [API, MCP server and copilot](#-api-mcp-server-and-copilot)
-14. [Testing and quality](#-testing-and-quality)
+3. [Approach](#-approach)
+4. [System architecture](#-system-architecture)
+5. [Features of the console](#-features-of-the-console)
+6. [Pune pilot deployment](#-pune-pilot-deployment-digital-twin)
+7. [Tech stack](#-tech-stack)
+8. [Repository structure](#-repository-structure)
+9. [Getting started](#-getting-started)
+10. [Configuration](#-configuration)
+11. [Reproducing the results](#-reproducing-the-results)
+12. [API, MCP server and copilot](#-api-mcp-server-and-copilot)
+13. [Testing and quality](#-testing-and-quality)
+14. [Results](#-results)
 15. [Advantages](#-advantages)
 16. [Limitations](#-limitations)
 17. [Responsible AI](#-responsible-ai)
@@ -73,34 +75,6 @@ Three properties make this harder than ordinary regression: demand is **zero in 
 | **Operations** | Agents for drift detection, gated champion–challenger retraining and station discovery |
 | **Access** | Installable PWA, Web Push alerts, an MCP server for AI assistants and an in-app copilot |
 | **Deployment** | Docker Compose: PostgreSQL 16 + TimescaleDB, FastAPI, Next.js, MCP. Live console set up as a **Pune pilot twin** |
-
----
-
-## 📊 Results
-
-The models were trained on public charging data from the City of Palo Alto (2017–2020, 259,415 sessions) and evaluated on a held-out period they never saw. The same frozen models were then evaluated on the **Pune pilot twin** (Pune sites, Pune weather, Indian holidays, IST), which is what the console shows.
-
-| Model | WAPE (training city, held-out) | WAPE (Pune twin) | MASE (training city) | 90% coverage (training city) |
-|---|---|---|---|---|
-| B0 Persistence | 1.126 | 1.125 | 2.04 | 0.880 |
-| B1 Seasonal naive (24 h) | 0.686 | 0.686 | 1.25 | 0.892 |
-| B3 Hour-of-week climatology | 0.580 | 0.580 | 1.05 | 0.878 |
-| M1 Ridge | 0.512 | 0.513 | 0.93 | 0.886 |
-| M2 Random Forest | 0.501 | 0.509 | 0.91 | 0.888 |
-| M3 XGBoost | 0.496 | 0.502 | 0.90 | 0.891 |
-| M4 LightGBM (Tweedie) | 0.489 | 0.496 | 0.89 | 0.891 |
-| M5 Seq2Seq LSTM | 0.510 | 0.520 | 0.93 | 0.877 |
-| **M4 LightGBM q50 (champion)** | **0.468** | **0.475** | **0.85** | **0.893** |
-
-**Headlines**
-
-- 🏆 The champion is **31.8% more accurate than seasonal naive** (WAPE 0.468 vs 0.686), and better than every other model at both 1-hour and 24-hour horizons. Diebold–Mariano tests with Holm correction give p < 10⁻⁵.
-- 🎯 Its 90% intervals cover **89.3%** of hours (target 87–93%).
-- 🔍 SHAP shows that **weekly and daily usage patterns drive demand**; holidays are the largest source of error; weather explains about 0.1% of the forecasts.
-- 🦠 On the COVID-19 collapse (March–June 2020), error doubled while coverage *rose*. A CUSUM drift detector on forecast bias still raised the first alarm **9 days before** the regional lockdown order.
-- 🔁 The first live champion–challenger retrain improved WAPE by 1.9%, short of the 2% gate, and was **correctly not promoted**.
-
-> Pune-twin and training-city results are close because the twin keeps the training demand and changes only the local context (weather, holidays, time zone, sites). See [Limitations](#-limitations).
 
 ---
 
@@ -273,6 +247,18 @@ $env:GROQ_API_KEY="your-key"; uv run power-mcp --transport http --port 8765
 
 > The service worker (offline mode, Web Push) only runs in the production build: use Docker to try those.
 
+### 📲 Install the app (Android, iOS, desktop)
+
+P.O.W.E.R. is an installable Progressive Web App with its own icon, a full-screen window, an offline page and push alerts. Open the console from the production build (Docker), then:
+
+| Device | How to install |
+|---|---|
+| **Android** (Chrome, Edge, Samsung Internet) | Tap **Install** on the in-app banner, or browser menu → **Install app** |
+| **iPhone / iPad** (Safari, iOS 16.4+) | Tap **Share** → **Add to Home Screen** (the app shows this hint) |
+| **Windows / macOS / Linux** (Chrome, Edge) | Click **Install app** in the sidebar, or the install icon in the address bar |
+
+> Browsers only allow installing from **HTTPS** or `localhost`. To install on a phone, serve the console over HTTPS (for example behind a reverse proxy or a tunnel such as Cloudflare Tunnel), not over a plain LAN IP address.
+
 ---
 
 ## ⚙️ Configuration
@@ -369,6 +355,34 @@ cd apps/web && npx tsc --noEmit -p . && npx eslint src
 ```
 
 The tests cover features, splits, metrics, conformal and drift code; leakage (future-poisoning, split purity, weather vintages); training and every LSTM horizon; the API on **SQLite and PostgreSQL** (`POWER_TEST_DATABASE_URL`); the Pune twin's time alignment and id isolation; the agents (drift, retrain gate, rollback, discovery); the MCP tools; the copilot loop against fake provider APIs; and Web Push.
+
+---
+
+## 📊 Results
+
+The models were trained on public charging data from the City of Palo Alto (2017–2020, 259,415 sessions) and evaluated on a held-out period they never saw. The same frozen models were then evaluated on the **Pune pilot twin** (Pune sites, Pune weather, Indian holidays, IST), which is what the console shows.
+
+| Model | WAPE (training city, held-out) | WAPE (Pune twin) | MASE (training city) | 90% coverage (training city) |
+|---|---|---|---|---|
+| B0 Persistence | 1.126 | 1.125 | 2.04 | 0.880 |
+| B1 Seasonal naive (24 h) | 0.686 | 0.686 | 1.25 | 0.892 |
+| B3 Hour-of-week climatology | 0.580 | 0.580 | 1.05 | 0.878 |
+| M1 Ridge | 0.512 | 0.513 | 0.93 | 0.886 |
+| M2 Random Forest | 0.501 | 0.509 | 0.91 | 0.888 |
+| M3 XGBoost | 0.496 | 0.502 | 0.90 | 0.891 |
+| M4 LightGBM (Tweedie) | 0.489 | 0.496 | 0.89 | 0.891 |
+| M5 Seq2Seq LSTM | 0.510 | 0.520 | 0.93 | 0.877 |
+| **M4 LightGBM q50 (champion)** | **0.468** | **0.475** | **0.85** | **0.893** |
+
+**Headlines**
+
+- 🏆 The champion is **31.8% more accurate than seasonal naive** (WAPE 0.468 vs 0.686), and better than every other model at both 1-hour and 24-hour horizons. Diebold–Mariano tests with Holm correction give p < 10⁻⁵.
+- 🎯 Its 90% intervals cover **89.3%** of hours (target 87–93%).
+- 🔍 SHAP shows that **weekly and daily usage patterns drive demand**; holidays are the largest source of error; weather explains about 0.1% of the forecasts.
+- 🦠 On the COVID-19 collapse (March–June 2020), error doubled while coverage *rose*. A CUSUM drift detector on forecast bias still raised the first alarm **9 days before** the regional lockdown order.
+- 🔁 The first live champion–challenger retrain improved WAPE by 1.9%, short of the 2% gate, and was **correctly not promoted**.
+
+> Pune-twin and training-city results are close because the twin keeps the training demand and changes only the local context (weather, holidays, time zone, sites). See [Limitations](#-limitations).
 
 ---
 
