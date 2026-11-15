@@ -25,13 +25,13 @@ export default function CommandCenter() {
       <KpiRibbon />
 
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <section className="card flex flex-col p-3">
+        <section className="card flex min-w-0 flex-col p-3">
           <div className="flex flex-wrap items-center gap-3 px-1 pb-3">
             <div>
               <h1 className="text-base font-semibold">City map · forecast in {h} h</h1>
-              <p className="text-xs text-muted">{snap.data ? fmtTime(snap.data.target_time) : "…"} · colour = risk at q95, size = median load</p>
+              <p className="tabular text-xs text-muted">{snap.data ? fmtTime(snap.data.target_time) : "…"} · colour = risk at q95, size = median load</p>
             </div>
-            <label className="ml-auto flex w-full items-center gap-3 text-xs text-muted sm:w-auto">
+            <label className="tabular ml-auto flex min-h-10 w-full items-center gap-3 text-xs font-medium text-muted sm:w-auto">
               +1 h
               <input
                 type="range"
@@ -39,7 +39,7 @@ export default function CommandCenter() {
                 max={24}
                 value={h}
                 onChange={(e) => setH(Number(e.target.value))}
-                className="w-full accent-[var(--accent)] sm:w-56"
+                className="w-full sm:w-56"
                 aria-label="Forecast horizon in hours"
               />
               +24 h
@@ -49,7 +49,7 @@ export default function CommandCenter() {
             <StationMap snapshot={snap.data} onSelect={(id) => router.push(`/stations/${id}`)} />
           </div>
           {snap.data && snap.data.reroutes.length > 0 && (
-            <div className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-xs">
+            <div className="tabular mt-3 rounded-lg border border-accent/25 bg-accent-soft px-3 py-2 text-xs leading-relaxed">
               <strong>Reroute suggestions</strong> (for the network&apos;s worst hour):{" "}
               {snap.data.reroutes.map((r, i) => (
                 <span key={i}>
@@ -61,21 +61,24 @@ export default function CommandCenter() {
           )}
         </section>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <AlertFeed />
-          <div className="card">
+          <div className="card overflow-hidden">
             <div className="border-b border-border px-4 py-3 text-sm font-semibold">Stations at +{h} h</div>
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-divider">
               {modeled.map((s) => (
                 <li key={s.station_id}>
-                  <Link href={`/stations/${s.station_id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-2">
-                    <span className="size-2.5 rounded-full" style={{ background: RISK_COLOR[s.risk ?? "NORMAL"] }} />
+                  <Link href={`/stations/${s.station_id}`} className="group flex min-h-10 items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-2">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,currentColor_18%,transparent)]"
+                      style={{ background: RISK_COLOR[s.risk ?? "NORMAL"], color: RISK_COLOR[s.risk ?? "NORMAL"] }}
+                    />
                     <span className="flex-1 truncate">{s.name}</span>
                     <span className="tabular text-xs text-muted">{fmtNum(s.q50)} kWh</span>
                     <span className={clsx("tabular w-12 text-right text-xs", (s.load_ratio_q95 ?? 0) >= 0.85 ? "text-crit" : "text-muted")}>
                       {fmtPct(s.load_ratio_q95)}
                     </span>
-                    <ArrowRight size={14} className="text-muted" />
+                    <ArrowRight size={14} className="text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-accent" />
                   </Link>
                 </li>
               ))}

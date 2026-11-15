@@ -3,6 +3,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Forecast } from "@/lib/api";
+import { AXIS, GRID, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart";
 import { fmtHour, fmtNum, fmtTime } from "@/lib/format";
 
 interface Row {
@@ -37,20 +38,21 @@ export function ForecastChart({ data, onPickHour }: { data: Forecast; onPickHour
           if (r?.h && onPickHour) onPickHour(r.h);
         }}
       >
-        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid {...GRID} />
         <XAxis
           dataKey="t"
           type="number"
           scale="time"
           domain={["dataMin", "dataMax"]}
           tickFormatter={(v: number) => fmtHour(new Date(v).toISOString())}
-          stroke="var(--muted)"
-          tick={{ fontSize: 11 }}
+          {...AXIS}
           minTickGap={40}
         />
-        <YAxis stroke="var(--muted)" tick={{ fontSize: 11 }} width={44} domain={[0, Math.ceil(ymax)]} unit="" />
+        <YAxis {...AXIS} axisLine={false} width={44} domain={[0, Math.ceil(ymax)]} unit="" />
         <Tooltip
-          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12 }}
+          contentStyle={TOOLTIP_STYLE}
+          labelStyle={TOOLTIP_LABEL_STYLE}
+          cursor={TOOLTIP_CURSOR}
           labelFormatter={(v) => fmtTime(new Date(Number(v)).toISOString())}
           formatter={(value, name) => {
             if (Array.isArray(value)) return [`${fmtNum(value[0])} – ${fmtNum(value[1])} kWh`, "90% interval"];
@@ -58,15 +60,30 @@ export function ForecastChart({ data, onPickHour }: { data: Forecast; onPickHour
           }}
         />
         <Area dataKey="band" stroke="none" fill="var(--band)" isAnimationActive={false} connectNulls />
-        <Line dataKey="actual" stroke="var(--text)" strokeWidth={1.6} dot={false} isAnimationActive={false} />
-        <Line dataKey="q50" stroke="var(--accent)" strokeWidth={2.2} dot={false} isAnimationActive={false} connectNulls />
+        <Line dataKey="actual" stroke="var(--text)" strokeOpacity={0.85} strokeWidth={1.6} dot={false} isAnimationActive={false} />
+        <Line
+          dataKey="q50"
+          stroke="var(--accent)"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          dot={false}
+          activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--surface)", strokeWidth: 2 }}
+          isAnimationActive={false}
+          connectNulls
+        />
         <ReferenceLine
           y={data.transformer_kw}
           stroke="var(--crit)"
           strokeDasharray="6 4"
-          label={{ value: `assumed capacity ${fmtNum(data.transformer_kw)} kW`, position: "insideTopRight", fill: "var(--crit)", fontSize: 11 }}
+          strokeWidth={1.5}
+          label={{ value: `assumed capacity ${fmtNum(data.transformer_kw)} kW`, position: "insideTopRight", fill: "var(--crit)", fontSize: 11, fontWeight: 600 }}
         />
-        <ReferenceLine x={origin} stroke="var(--muted)" label={{ value: "now", position: "insideTopLeft", fill: "var(--muted)", fontSize: 11 }} />
+        <ReferenceLine
+          x={origin}
+          stroke="var(--muted)"
+          strokeDasharray="2 3"
+          label={{ value: "now", position: "insideTopLeft", fill: "var(--muted)", fontSize: 11, fontWeight: 600 }}
+        />
       </ComposedChart>
     </ResponsiveContainer>
   );

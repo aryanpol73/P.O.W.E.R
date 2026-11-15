@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, FlaskConical } from "lucide-react";
+import { AlertTriangle, FlaskConical, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { api, type ScenarioResult } from "@/lib/api";
+import { AXIS, GRID, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart";
 import { fmtHour, fmtNum, fmtTime, prettyStation } from "@/lib/format";
 
 function aggregate(res: ScenarioResult) {
@@ -55,16 +56,16 @@ export default function SimulatorPage() {
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <section className="card flex flex-col gap-4 p-4">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="flex justify-between"><span>Temperature change</span><span className="tabular text-muted">{temp > 0 ? "+" : ""}{temp} °C</span></span>
-            <input type="range" min={-15} max={15} step={1} value={temp} onChange={(e) => setTemp(Number(e.target.value))} className="accent-[var(--accent)]" />
+            <span className="flex justify-between"><span>Temperature change</span><span className="tabular font-medium text-muted">{temp > 0 ? "+" : ""}{temp} °C</span></span>
+            <input type="range" min={-15} max={15} step={1} value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="flex justify-between"><span>Rain every hour</span><span className="tabular text-muted">{rain} mm</span></span>
-            <input type="range" min={0} max={10} step={0.5} value={rain} onChange={(e) => setRain(Number(e.target.value))} className="accent-[var(--accent)]" />
+            <span className="flex justify-between"><span>Rain every hour</span><span className="tabular font-medium text-muted">{rain} mm</span></span>
+            <input type="range" min={0} max={10} step={0.5} value={rain} onChange={(e) => setRain(Number(e.target.value))} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="flex justify-between"><span>Demand multiplier (assumption)</span><span className="tabular text-muted">×{mult.toFixed(2)}</span></span>
-            <input type="range" min={0.5} max={2} step={0.05} value={mult} onChange={(e) => setMult(Number(e.target.value))} className="accent-[var(--accent)]" />
+            <span className="flex justify-between"><span>Demand multiplier (assumption)</span><span className="tabular font-medium text-muted">×{mult.toFixed(2)}</span></span>
+            <input type="range" min={0.5} max={2} step={0.05} value={mult} onChange={(e) => setMult(Number(e.target.value))} />
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={holiday} onChange={(e) => setHoliday(e.target.checked)} className="size-4 accent-[var(--accent)]" />
@@ -72,15 +73,15 @@ export default function SimulatorPage() {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Stations
-            <select value={station} onChange={(e) => setStation(e.target.value)} className="h-9 rounded-lg border border-border bg-surface px-2">
+            <select value={station} onChange={(e) => setStation(e.target.value)} className="field">
               <option value="*">Whole network</option>
               {stations.data?.filter((s) => s.is_modeled).map((s) => (
                 <option key={s.station_id} value={s.station_id}>{s.name}</option>
               ))}
             </select>
           </label>
-          <button onClick={submit} disabled={run.isPending} className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">
-            <FlaskConical size={16} /> {run.isPending ? "Running…" : "Run scenario"}
+          <button onClick={submit} disabled={run.isPending} aria-busy={run.isPending} className="btn btn-primary min-h-11 text-sm">
+            {run.isPending ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />} {run.isPending ? "Running…" : "Run scenario"}
           </button>
           {run.isError && <p className="text-xs text-crit">{(run.error as Error).message}</p>}
         </section>
@@ -92,7 +93,7 @@ export default function SimulatorPage() {
               <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <h2 className="text-sm font-semibold">{station === "*" ? "Network" : prettyStation(station)}: baseline vs scenario</h2>
                 <span className="text-xs text-muted">origin {fmtTime(run.data.forecast_origin)}</span>
-                <span className="ml-auto text-sm">
+                <span className="tabular ml-auto text-sm">
                   network peak change <strong className={run.data.delta_network_peak_kwh >= 0 ? "text-crit" : "text-ok"}>
                     {run.data.delta_network_peak_kwh >= 0 ? "+" : ""}{fmtNum(run.data.delta_network_peak_kwh)} kWh
                   </strong>
@@ -109,18 +110,20 @@ export default function SimulatorPage() {
               ))}
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="t" stroke="var(--muted)" tick={{ fontSize: 11 }} tickFormatter={(v: string) => fmtHour(v)} minTickGap={30} />
-                  <YAxis stroke="var(--muted)" tick={{ fontSize: 11 }} width={44} />
+                  <CartesianGrid {...GRID} />
+                  <XAxis dataKey="t" {...AXIS} tickFormatter={(v: string) => fmtHour(v)} minTickGap={30} />
+                  <YAxis {...AXIS} axisLine={false} width={44} />
                   <Tooltip
-                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12 }}
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    cursor={TOOLTIP_CURSOR}
                     labelFormatter={(v) => fmtTime(String(v))}
                     formatter={(v, n) => (Array.isArray(v) ? [`${fmtNum(v[0])} – ${fmtNum(v[1])} kWh`, "scenario band (sum of sites)"] : [`${fmtNum(Number(v))} kWh`, n === "base" ? "baseline" : "scenario"])}
                   />
-                  <Legend formatter={(v) => <span className="text-xs">{v === "base" ? "baseline (median)" : v === "scen" ? "scenario (median)" : "scenario band"}</span>} />
+                  <Legend formatter={(v) => <span className="text-xs text-muted">{v === "base" ? "baseline (median)" : v === "scen" ? "scenario (median)" : "scenario band"}</span>} />
                   <Area dataKey="band" stroke="none" fill="var(--band)" isAnimationActive={false} />
                   <Line dataKey="base" stroke="var(--muted)" strokeDasharray="5 4" dot={false} strokeWidth={1.8} isAnimationActive={false} />
-                  <Line dataKey="scen" stroke="var(--accent)" dot={false} strokeWidth={2.4} isAnimationActive={false} />
+                  <Line dataKey="scen" stroke="var(--accent)" dot={false} strokeWidth={2.4} strokeLinecap="round" activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--surface)", strokeWidth: 2 }} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
               <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { api, type LeaderRow } from "@/lib/api";
+import { AXIS, GRID, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart";
 import { fmtNum, modelLabel } from "@/lib/format";
 
 // "target": best is closest to the nominal 90% coverage, not the highest (100% would just be too wide).
@@ -21,7 +22,8 @@ const COLS: { key: keyof LeaderRow | "picp"; label: string; better: "low" | "hig
   { key: "latency_ms_one_origin", label: "ms / origin", better: "low", digits: 1 },
 ];
 const CURVES = ["B1_seasonal_naive_24h", "B3_climatology", "M1_ridge", "M3_xgboost", "M4_lightgbm", "M4_lightgbm_quantile", "M5_lstm"];
-const PALETTE = ["#8a96a8", "#b07cc6", "#e08a3c", "#2a9d8f", "#1f4fd1", "#d23b3b", "#16a34a"];
+// categorical series tokens (globals.css): the champion takes the accent, risk colours are not used
+const PALETTE = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)", "var(--series-6)", "var(--series-7)"];
 
 const value = (r: LeaderRow, k: string) => (k === "picp" ? (r.interval_cqr ?? r.interval_split_conformal).picp : (r as unknown as Record<string, number | null>)[k]);
 
@@ -75,11 +77,15 @@ export default function ArenaPage() {
       <section className="card overflow-x-auto">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs text-muted">
+            <tr className="border-b border-border bg-surface-2/50 text-left text-xs text-muted">
               <th className="px-4 py-3 font-medium">Model</th>
               {COLS.map((c) => (
                 <th key={c.key} className="px-3 py-3 text-right font-medium">
-                  <button onClick={() => setSortKey(c.key)} className={clsx("hover:text-text", sortKey === c.key && "text-accent")}>
+                  <button
+                    onClick={() => setSortKey(c.key)}
+                    aria-pressed={sortKey === c.key}
+                    className={clsx("-mx-1.5 min-h-8 rounded-md px-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] hover:bg-surface-2 hover:text-text", sortKey === c.key && "text-accent")}
+                  >
                     {c.label}
                   </button>
                 </th>
@@ -88,7 +94,7 @@ export default function ArenaPage() {
           </thead>
           <tbody>
             {rows.map(([name, r]) => (
-              <tr key={name} className={clsx("border-b border-border last:border-0", name === "M4_lightgbm_quantile" && "bg-accent-soft/50")}>
+              <tr key={name} className={clsx("border-b border-divider last:border-0 hover:bg-surface-2/60", name === "M4_lightgbm_quantile" && "bg-accent-soft/50")}>
                 <td className="px-4 py-2.5 font-medium">{modelLabel(name)}</td>
                 {COLS.map((c) => {
                   const v = value(r, c.key);
@@ -111,15 +117,17 @@ export default function ArenaPage() {
           <p className="mb-2 text-xs text-muted">The LSTM wins the next hour; gradient boosting wins from about 6 hours ahead.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={curve} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="h" stroke="var(--muted)" tick={{ fontSize: 11 }} tickFormatter={(v) => `+${v}h`} />
-              <YAxis stroke="var(--muted)" tick={{ fontSize: 11 }} width={40} domain={["auto", "auto"]} />
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="h" {...AXIS} tickFormatter={(v) => `+${v}h`} />
+              <YAxis {...AXIS} axisLine={false} width={40} domain={["auto", "auto"]} />
               <Tooltip
-                contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12 }}
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={TOOLTIP_LABEL_STYLE}
+                cursor={TOOLTIP_CURSOR}
                 formatter={(v, n) => [fmtNum(Number(v), 3), modelLabel(String(n))]}
                 labelFormatter={(v) => `horizon +${v} h`}
               />
-              <Legend formatter={(v) => <span className="text-xs">{modelLabel(String(v))}</span>} />
+              <Legend iconType="plainline" formatter={(v) => <span className="text-xs text-muted">{modelLabel(String(v))}</span>} />
               {CURVES.map((m, i) => (
                 <Line key={m} dataKey={m} stroke={PALETTE[i]} dot={false} strokeWidth={m === "M4_lightgbm_quantile" ? 2.6 : 1.6} isAnimationActive={false} />
               ))}
@@ -138,8 +146,8 @@ export default function ArenaPage() {
               <li key={name} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs">
                 <span className="truncate">{modelLabel(name)}</span>
                 <span className="tabular font-medium">WAPE {fmtNum(m.wape, 3)}</span>
-                <div className="col-span-2 h-1.5 overflow-hidden rounded bg-surface-2">
-                  <div className="h-full rounded bg-accent" style={{ width: `${Math.min(100, m.wape * 70)}%` }} />
+                <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-full rounded-full bg-gradient-to-r from-accent/70 to-accent" style={{ width: `${Math.min(100, m.wape * 70)}%` }} />
                 </div>
               </li>
             ))}

@@ -26,7 +26,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/" className="grid size-8 place-items-center rounded-lg border border-border bg-surface" aria-label="Back">
+        <Link href="/" className="btn btn-secondary btn-icon" aria-label="Back">
           <ArrowLeft size={16} />
         </Link>
         <div>
@@ -38,7 +38,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         <select
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="ml-auto h-9 rounded-lg border border-border bg-surface px-2 text-sm"
+          className="field ml-auto"
           aria-label="Model"
         >
           <option value="champion">Champion (LightGBM q50)</option>
@@ -52,30 +52,30 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted">Next-24 h peak</div>
-          <div className="tabular text-xl font-semibold">{fmtNum(peak?.q50)} kWh</div>
-          <div className="text-xs text-muted">{peak ? fmtTime(peak.target_time) : "-"}</div>
+          <div className="eyebrow">Next-24 h peak</div>
+          <div className="kpi mt-1.5 text-xl">{fmtNum(peak?.q50)} kWh</div>
+          <div className="tabular mt-0.5 text-xs text-muted">{peak ? fmtTime(peak.target_time) : "-"}</div>
         </div>
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted">Worst q95 vs capacity (24 h)</div>
-          <div className="tabular text-xl font-semibold" style={{ color: RISK_COLOR[worst?.risk ?? "NORMAL"] }}>
+          <div className="eyebrow">Worst q95 vs capacity (24 h)</div>
+          <div className="kpi mt-1.5 text-xl" style={{ color: RISK_COLOR[worst?.risk ?? "NORMAL"] }}>
             {fmtPct(worst?.load_ratio_q95)}
           </div>
-          <div className="text-xs text-muted">{worst ? `${worst.risk.toLowerCase()} at +${worst.h} h` : "-"}</div>
+          <div className="tabular mt-0.5 text-xs text-muted">{worst ? `${worst.risk.toLowerCase()} at +${worst.h} h` : "-"}</div>
         </div>
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted">Next hour</div>
-          <div className="tabular text-xl font-semibold">{fmtNum(fc.data?.points[0]?.q50)} kWh</div>
-          <div className="text-xs text-muted">
+          <div className="eyebrow">Next hour</div>
+          <div className="kpi mt-1.5 text-xl">{fmtNum(fc.data?.points[0]?.q50)} kWh</div>
+          <div className="tabular mt-0.5 text-xs text-muted">
             90% interval {fmtNum(fc.data?.points[0]?.q05)} – {fmtNum(fc.data?.points[0]?.q95)}
           </div>
         </div>
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted">Data quality</div>
-          <div className={clsx("text-xl font-semibold", fc.data?.is_degraded ? "text-warn" : "text-ok")}>
+          <div className="eyebrow">Data quality</div>
+          <div className={clsx("kpi mt-1.5 text-xl", fc.data?.is_degraded ? "text-warn" : "text-ok")}>
             {fc.data ? (fc.data.is_degraded ? "Degraded" : "Good") : "-"}
           </div>
-          <div className="text-xs text-muted">{fc.data?.is_degraded ? "recent hours were imputed" : "all recent hours observed"}</div>
+          <div className="mt-0.5 text-xs text-muted">{fc.data?.is_degraded ? "recent hours were imputed" : "all recent hours observed"}</div>
         </div>
       </div>
 
@@ -89,10 +89,10 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
           </div>
           {fc.isError && <p className="text-sm text-crit">{(fc.error as Error).message}</p>}
           {fc.data && <ForecastChart data={fc.data} onPickHour={setH} />}
-          <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-muted">
-            <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 bg-[var(--text)]" /> actual</span>
-            <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 bg-accent" /> forecast (median)</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm" style={{ background: "var(--band)" }} /> 90% interval (calibrated)</span>
+          <div className="mt-2 flex flex-wrap gap-4 text-[11px] font-medium text-muted">
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-text/85" /> actual</span>
+            <span className="flex items-center gap-1.5"><span className="h-[3px] w-4 rounded-full bg-accent" /> forecast (median)</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm border border-accent/30" style={{ background: "var(--band)" }} /> 90% interval (calibrated)</span>
           </div>
         </section>
 
@@ -102,7 +102,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             <select
               value={h ?? ""}
               onChange={(e) => setH(e.target.value ? Number(e.target.value) : undefined)}
-              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs"
+              className="field field-sm tabular"
               aria-label="Hour to explain"
             >
               <option value="">peak hour</option>
@@ -115,7 +115,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
           </div>
           {ex.data && (
             <>
-              <p className="mb-3 text-xs text-muted">
+              <p className="tabular mb-3 text-xs text-muted">
                 {fmtTime(ex.data.target_time)} (+{ex.data.h} h)
               </p>
               <ShapWaterfall e={ex.data} />

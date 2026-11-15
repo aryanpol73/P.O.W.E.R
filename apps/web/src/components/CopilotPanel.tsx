@@ -140,14 +140,17 @@ export function CopilotPanel() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close copilot" : "Open copilot"}
-        className="fixed bottom-20 right-4 z-40 grid size-12 place-items-center rounded-full bg-accent text-white shadow-lg md:bottom-6"
+        aria-expanded={open}
+        className="btn btn-primary fixed bottom-20 right-4 z-40 size-12 rounded-full p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_28px_-8px_var(--accent)] md:bottom-6"
       >
         {open ? <X size={20} /> : <MessageSquareText size={20} />}
       </button>
       {open && (
-        <section className="card fixed bottom-36 right-4 z-40 flex h-[min(70dvh,560px)] w-[min(calc(100vw-2rem),400px)] flex-col overflow-hidden shadow-2xl md:bottom-20">
-          <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <Sparkles size={16} className="text-accent" />
+        <section className="glass-panel panel-in fixed bottom-36 right-4 z-40 flex h-[min(70dvh,560px)] w-[min(calc(100vw-2rem),400px)] flex-col overflow-hidden md:bottom-20">
+          <header className="flex items-center gap-2.5 border-b border-divider px-4 py-3">
+            <span className="grid size-7 place-items-center rounded-md bg-accent-soft text-accent">
+              <Sparkles size={15} />
+            </span>
             <div className="min-w-0">
               <div className="text-sm font-semibold">Grid copilot</div>
               <div className="truncate text-[11px] text-muted">
@@ -166,7 +169,11 @@ export function CopilotPanel() {
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-muted">Ask about risk, forecasts, drivers, scenarios or model accuracy.</p>
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => ask(s)} className="rounded-lg border border-border px-3 py-2 text-left text-xs hover:bg-surface-2">
+                  <button
+                    key={s}
+                    onClick={() => ask(s)}
+                    className="min-h-10 rounded-lg border border-border bg-surface/70 px-3 py-2 text-left text-xs hover:border-accent/40 hover:bg-accent-soft hover:text-text active:scale-[0.99]"
+                  >
                     {s}
                   </button>
                 ))}
@@ -174,7 +181,14 @@ export function CopilotPanel() {
             )}
             {turns.map((t, i) => (
               <div key={i} className={clsx("flex", t.role === "user" ? "justify-end" : "justify-start")}>
-                <div className={clsx("max-w-[90%] rounded-xl px-3 py-2", t.role === "user" ? "bg-accent text-white" : "bg-surface-2")}>
+                <div
+                  className={clsx(
+                    "max-w-[90%] rounded-xl px-3 py-2",
+                    t.role === "user"
+                      ? "rounded-br-sm bg-gradient-to-b from-[var(--accent-hi)] to-accent text-accent-fg shadow-[0_6px_16px_-8px_var(--accent)]"
+                      : "rounded-bl-sm border border-divider bg-surface-2",
+                  )}
+                >
                   {t.steps && t.steps.length > 0 && (
                     <ul className="mb-1.5 flex flex-wrap gap-1">
                       {t.steps.map((s, j) => (
@@ -200,16 +214,17 @@ export function CopilotPanel() {
               e.preventDefault();
               ask(input);
             }}
-            className="flex gap-2 border-t border-border p-3"
+            className="flex gap-2 border-t border-divider p-3"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask the copilot…"
+              aria-label="Message the copilot"
               disabled={busy || status.data?.enabled === false}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+              className="field min-w-0 flex-1 px-3 placeholder:text-muted"
             />
-            <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="grid size-9 place-items-center rounded-lg bg-accent text-white disabled:opacity-50">
+            <button type="submit" disabled={busy || !input.trim()} aria-busy={busy} aria-label="Send" className="btn btn-primary btn-icon">
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </form>

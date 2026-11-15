@@ -69,18 +69,17 @@ export function PushToggle({ level = "CRITICAL", className }: { level?: "CRITICA
   };
   const usable = state === "off" || state === "on";
   return (
-    <div className={clsx("flex flex-col items-end", className)}>
+    <div className={clsx("flex min-w-0 flex-col items-end", className)}>
       <button
         onClick={toggle}
         disabled={!usable}
+        aria-busy={state === "busy"}
+        aria-pressed={state === "on"}
         title={label[state]}
-        className={clsx(
-          "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60",
-          state === "on" ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-surface-2",
-        )}
+        className={clsx("btn btn-secondary btn-sm max-w-full", state === "on" && "btn-on")}
       >
         {state === "busy" ? <Loader2 size={13} className="animate-spin" /> : state === "on" ? <Bell size={13} /> : <BellOff size={13} />}
-        <span className="hidden sm:inline">{label[state]}</span>
+        <span className="hidden min-w-0 truncate sm:inline">{label[state]}</span>
       </button>
       {error && <span className="mt-1 text-[11px] text-crit">{error}</span>}
     </div>
