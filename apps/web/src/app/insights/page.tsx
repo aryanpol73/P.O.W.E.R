@@ -17,6 +17,8 @@ const FEATURE_LABELS: Record<string, string> = {
   dow_cos: "day of week (cos)",
   level_ratio: "today vs month level",
   station_id: "station",
+  is_holiday: "Indian public holiday",
+  doy_sin: "season (sin)",
   doy_cos: "season (cos)",
   rolling_mean_24h: "24 h average load",
   lag_24h: "same hour yesterday",
@@ -41,6 +43,10 @@ export default function InsightsPage() {
   const errs = useQuery({ queryKey: ["insights", "errors"], queryFn: api.errors, staleTime: Infinity });
   const stress = useQuery({ queryKey: ["insights", "stress"], queryFn: api.stress, staleTime: Infinity });
   const top = Object.entries((shap.data?.top_features ?? {}) as Record<string, number>).map(([f, v]) => ({ f: FEATURE_LABELS[f] ?? f, v }));
+  const groupVals = Object.values((shap.data?.group_importance ?? {}) as Record<string, number>);
+  const groupTotal = groupVals.reduce((a, b) => a + b, 0);
+  const weatherRaw = ((shap.data?.group_importance ?? {}) as Record<string, number>).weather;
+  const weatherShare = groupTotal > 0 && weatherRaw != null ? (Math.round((weatherRaw / groupTotal) * 1000) / 10).toString() : null;
   const groups = Object.entries((shap.data?.group_importance ?? {}) as Record<string, number>).map(([g, v]) => ({ g, v }));
   const hl = (errs.data?.highlights ?? {}) as Record<string, Record<string, number>>;
   const st = stress.data as any;
@@ -51,14 +57,14 @@ export default function InsightsPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold">Insights</h1>
-        <p className="text-sm text-muted">What drives the forecasts, where they fail, and how the system behaved when COVID-19 hit. Test period unless stated.</p>
+        <p className="text-sm text-muted">What drives the forecasts at the Pune pilot sites, where they fail, and how the system behaved when COVID-19 hit. Pune weather, Indian holidays and IST; held-out period unless stated.</p>
       </div>
       {(shap.isError || errs.isError) && <p className="card p-4 text-sm text-muted">Run `uv run power-ml analyze` to produce these results.</p>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
           <h2 className="text-sm font-semibold">Top drivers (mean |SHAP|, kWh)</h2>
-          <p className="mb-2 text-xs text-muted">Recurring weekly and daily patterns dominate; weather barely mattered in the mild training climate (Palo Alto, USA).</p>
+          <p className="mb-2 text-xs text-muted">Recurring weekly and daily patterns dominate{weatherShare != null ? `; Pune weather accounts for ${weatherShare}% of the attribution` : ""}.</p>
           <ResponsiveContainer width="100%" height={340}>
             <BarChart data={top} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
               <CartesianGrid {...GRID} vertical horizontal={false} />
@@ -111,12 +117,12 @@ export default function InsightsPage() {
             <div className="text-sm">
               <div className="text-xs text-muted">First drift alarm in the COVID period</div>
               <div className="kpi text-lg">{st.cusum?.first_alarm_in_covid_period ?? "-"}</div>
-              <div className="text-xs text-muted">CUSUM on daily forecast bias · {testAlarms.length} alarms in the 172 normal test days</div>
+              <div className="text-xs text-muted">CUSUM on daily forecast bias · {testAlarms.length} alarms in the normal held-out period</div>
             </div>
             <div className="text-sm">
               <div className="text-xs text-muted">Demand-distribution alarm (seasonal PSI)</div>
               <div className="kpi text-lg">week of {st.seasonal_psi?.first_alarm_week ?? "-"}</div>
-              <div className="text-xs text-muted">Santa Clara County shelter-in-place: 17 Mar 2020</div>
+              <div className="text-xs text-muted">India&apos;s national lockdown began on 25 Mar 2020</div>
             </div>
             <div className="text-xs">
               <div className="mb-1 text-muted">WAPE, normal test → COVID</div>

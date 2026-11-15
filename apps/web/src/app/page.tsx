@@ -16,6 +16,7 @@ import { fmtNum, fmtPct, fmtTime, prettyStation, RISK_COLOR } from "@/lib/format
 export default function CommandCenter() {
   const router = useRouter();
   const [h, setH] = useState(1);
+  const [showOthers, setShowOthers] = useState(true);
   const snap = useQuery({ queryKey: ["snapshot", h], queryFn: () => api.snapshot(h), placeholderData: keepPreviousData });
   useQuery({ queryKey: ["stations"], queryFn: api.stations }); // display names for reroute text
   const modeled = snap.data?.stations.filter((s) => s.is_modeled).sort((a, b) => (b.load_ratio_q95 ?? 0) - (a.load_ratio_q95 ?? 0)) ?? [];
@@ -44,9 +45,16 @@ export default function CommandCenter() {
               />
               +24 h
             </label>
+            <label className="flex min-h-10 cursor-pointer items-center gap-2 text-xs text-muted">
+              <input type="checkbox" checked={showOthers} onChange={(e) => setShowOthers(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              Other chargers (no usage data)
+            </label>
           </div>
           <div className="h-[420px] md:h-[520px]">
-            <StationMap snapshot={snap.data} onSelect={(id) => router.push(`/stations/${id}`)} />
+            <StationMap
+              snapshot={snap.data && !showOthers ? { ...snap.data, stations: snap.data.stations.filter((s) => !s.station_id.startsWith("OSM_")) } : snap.data}
+              onSelect={(id) => router.push(`/stations/${id}`)}
+            />
           </div>
           {snap.data && snap.data.reroutes.length > 0 && (
             <div className="tabular mt-3 rounded-lg border border-accent/25 bg-accent-soft px-3 py-2 text-xs leading-relaxed">

@@ -83,6 +83,15 @@ class ServingEngine:
     def version_of(self, model_name: str) -> str:
         return f"{self.version}+{self.live_run}" if (self.live_run and model_name == QUANTILE) else self.version
 
+    @property
+    def reports_dir(self) -> Path:
+        """Results for the city on screen: reports/<deployment>/ (from `power-ml twin`), else the training results."""
+        if self.deployment is not None:
+            d = self.root / "reports" / self.deployment.cfg.name
+            if d.is_dir():
+                return d
+        return self.root / "reports"
+
     # ------------------------------------------------------------------ deployment ids
     def _to_model(self, panel: pd.DataFrame) -> pd.DataFrame:
         """Deployed site ids -> the training (donor) ids the models know."""
@@ -101,7 +110,7 @@ class ServingEngine:
         Summing station intervals would be wrong: station errors partly cancel, so the sum of
         q95s overstates the network q95 (audit flaw F10).
         """
-        p = self.root / "reports" / "predictions_val.parquet"
+        p = self.reports_dir / "predictions_val.parquet"
         if not p.exists():
             return {}
         v = pd.read_parquet(p, columns=["origin", "h", "y", self.champion])
@@ -129,7 +138,7 @@ class ServingEngine:
         return out
 
     def leaderboard(self) -> dict[str, Any]:
-        p = self.root / "reports" / "metrics_test.json"
+        p = self.reports_dir / "metrics_test.json"
         return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
     # ------------------------------------------------------------------ core

@@ -39,6 +39,7 @@ addopts = "-ra"
 [tool.ruff]
 line-length = 130
 target-version = "py312"
+extend-exclude = [".claude"]  # third-party agent skills (e.g. ui-ux-pro-max), not project code
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "NPY", "PD002"]

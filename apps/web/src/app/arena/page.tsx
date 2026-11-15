@@ -69,7 +69,8 @@ export default function ArenaPage() {
       <div>
         <h1 className="text-lg font-semibold">Model Arena</h1>
         <p className="text-sm text-muted">
-          Held-out test period {lb.data ? `(${lb.data.rows.toLocaleString()} forecasts, evaluated once)` : ""}. Click a column to sort. WAPE is
+          Pune pilot sites over the held-out period {lb.data ? `(${lb.data.rows.toLocaleString()} forecasts)` : ""}, with Pune weather, Indian
+          holidays and IST. Click a column to sort. WAPE is
           the primary metric: MAPE is undefined on the many zero-demand hours.
         </p>
       </div>
@@ -113,8 +114,8 @@ export default function ArenaPage() {
 
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <section className="card p-4">
-          <h2 className="text-sm font-semibold">Error by forecast horizon (test)</h2>
-          <p className="mb-2 text-xs text-muted">The LSTM wins the next hour; gradient boosting wins from about 6 hours ahead.</p>
+          <h2 className="text-sm font-semibold">Error by forecast horizon (Pune, held-out period)</h2>
+          <p className="mb-2 text-xs text-muted">Learned models gain most in the first few hours, where the current state of each site still carries information.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={curve} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />

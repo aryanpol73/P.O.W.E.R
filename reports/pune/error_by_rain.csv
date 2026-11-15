@@ -1,0 +1,3 @@
+group,n,mean_y,wape_M4_lightgbm_quantile,wape_M4_lightgbm,wape_B1_seasonal_naive_24h,wape_B3_climatology
+dry,709490,6.722,0.4776,0.4994,0.6896,0.5862
+rain,76846,7.892,0.4576,0.4668,0.658,0.5304

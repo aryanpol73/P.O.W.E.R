@@ -42,3 +42,7 @@ apps/web/.next-*/
 data/vapid.json
 data/*.json.tmp
 encrypted.data
+
+# Deployment twin evaluation: generated root (rebuild with `power-ml twin`) and its large predictions
+data/twins/
+reports/*/*.parquet

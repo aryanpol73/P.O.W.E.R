@@ -1,0 +1,9 @@
+group,site,n,mean_y,wape_M4_lightgbm_quantile,wape_M4_lightgbm,wape_B1_seasonal_naive_24h,wape_B3_climatology
+PA_BRYANT,"Westend Mall, Aundh",98292,8.697,0.4483,0.4694,0.6582,0.5118
+PA_CAMBRIDGE,"Paud Road, Erandwane",98292,8.992,0.4321,0.4405,0.6353,0.5918
+PA_HAMILTON,"Shankarao Gaikwad Path, Aundh",98292,4.933,0.4427,0.4742,0.6325,0.4932
+PA_HIGH,"Mahadji Shinde Marg, Aundh",98292,9.221,0.4273,0.4434,0.6341,0.5083
+PA_MPL,Sahakar Nagar,98292,4.048,0.591,0.635,0.8234,0.7632
+PA_RINCONADA_LIB,"Gokhale Path, Deccan Gymkhana",98292,3.17,0.8236,0.8773,1.145,0.9214
+PA_TED_THOMPSON,"Gandhibhavan Road, Karve Nagar",98292,6.725,0.4939,0.516,0.6903,0.7003
+PA_WEBSTER,"Balewadi High Street, Baner",98292,8.904,0.4227,0.4291,0.619,0.4611

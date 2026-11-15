@@ -93,6 +93,10 @@ def test_discovery_adds_unmodelled_stations(client: TestClient) -> None:
     assert res == {**res, "found": 3, "added": 2}
     sts = {x["station_id"]: x for x in client.get("/api/v1/stations", params={"modeled": False}).json()}
     assert sts["OSM_N1"]["is_modeled"] is False and sts["OSM_N1"]["total_ports"] == 4
+    assert sts["OSM_N1"]["kind"] == "discovered" and sts["OSM_N1"]["risk"] is None
+    assert sts["OSM_N1"]["estimate_next_hour_kwh"] is not None  # per-port median of the forecast sites x 4 ports
+    assert sts["OSM_W3"]["estimate_next_hour_kwh"] is None  # no port count, no estimate
+    assert sts["S_A"]["kind"] == "pilot" and sts["S_A"]["estimate_next_hour_kwh"] is None
     assert "OSM_N2" not in sts and "OSM_W3" in sts
     snap = client.get("/api/v1/network/snapshot", params={"h": 1}).json()
     assert any(x["station_id"] == "OSM_N1" and x["risk"] is None for x in snap["stations"])

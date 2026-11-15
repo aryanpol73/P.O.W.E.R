@@ -76,6 +76,12 @@ DISPLAY = {
 }
 
 
+def _site_name(root: Path, sid: object) -> str:
+    """Display name for a site (a deployment twin's own names), else the id without its source prefix."""
+    s = str(sid)
+    return data_config(root).display_names.get(s, s.replace("PA_", "").replace("_", " ").title())
+
+
 def _fig_dir(root: Path) -> Path:
     d = root / "reports" / "figures"
     d.mkdir(parents=True, exist_ok=True)
@@ -159,13 +165,14 @@ def run_shap(root: Path, source: str, n_sample: int = 4000, seed: int = 42) -> d
         when = pd.Timestamp(row["target_time"]).tz_convert(tz)
         parts = [f"{v:+.1f} from {DISPLAY.get(f, f)}" for f, v in top6.items()]
         narrative = (
-            f"{row['station_id']} at {when:%a %d %b %Y %H:%M}: base {b_loc[k]:.1f} kWh "
+            f"{_site_name(root, row['station_id'])} at {when:%a %d %b %Y %H:%M}: base {b_loc[k]:.1f} kWh "
             + " ".join(parts)
             + f" {rest:+.1f} other = {row['pred']:.1f} kWh forecast (actual {row['y']:.1f})"
         )
         examples.append(
             {
                 "station_id": str(row["station_id"]),
+                "site": _site_name(root, row["station_id"]),
                 "target_time_local": str(when),
                 "base_kwh": round(float(b_loc[k]), 3),
                 "forecast_kwh": round(float(row["pred"]), 3),
@@ -189,7 +196,7 @@ def run_shap(root: Path, source: str, n_sample: int = 4000, seed: int = 42) -> d
         ax.set_yticks(range(len(steps)), [s[0] for s in steps])
         ax.invert_yaxis()
         ax.set_xlabel("kWh")
-        ax.set_title(f"Why {row['pred']:.1f} kWh? {row['station_id']} {when:%a %d %b %H:%M}", fontsize=10)
+        ax.set_title(f"Why {row['pred']:.1f} kWh? {_site_name(root, row['station_id'])} {when:%a %d %b %H:%M}", fontsize=10)
         out[f"waterfall_{k + 1}"] = _save(fig, figs / f"shap_waterfall_{k + 1}.png")
 
     summary = {
@@ -242,6 +249,7 @@ def run_error_analysis(root: Path, source: str) -> dict[str, Any]:
         for k in ("station_id", "saturated", "temp_tercile", "rain", "is_holiday", "h_bucket", "weekday", "hour")
     }
     rep = root / "reports"
+    tables["station_id"].insert(1, "site", [_site_name(root, g) for g in tables["station_id"]["group"]])
     for k, t in tables.items():
         t.to_csv(rep / f"error_by_{k}.csv", index=False)
     figs = _fig_dir(root)
@@ -263,7 +271,7 @@ def run_error_analysis(root: Path, source: str) -> dict[str, Any]:
     x = np.arange(len(st))
     ax.bar(x - 0.2, st[f"wape_{CHAMPION}"], 0.4, label="LightGBM q50", color="#1F3864")
     ax.bar(x + 0.2, st["wape_B1_seasonal_naive_24h"], 0.4, label="seasonal naive", color="#BFBFBF")
-    ax.set_xticks(x, [s.replace("PA_", "") for s in st["group"]], rotation=35, ha="right")
+    ax.set_xticks(x, list(st["site"]), rotation=35, ha="right", fontsize=8)
     ax.set_ylabel("WAPE")
     ax.legend()
     ax.set_title("Test WAPE by site")
@@ -298,7 +306,7 @@ def run_error_analysis(root: Path, source: str) -> dict[str, Any]:
     ax.plot(t, ex[CHAMPION], color="#C00000", lw=1, label="LightGBM q50 (h=1)")
     ax.set_ylabel("kWh per hour")
     ax.legend(loc="upper right", ncol=3, fontsize=8)
-    ax.set_title(f"{site}: two weeks of 1-hour-ahead forecasts (test period)")
+    ax.set_title(f"{_site_name(root, site)}: two weeks of 1-hour-ahead forecasts (test period)")
     out["example"] = _save(fig, figs / "forecast_example.png")
 
     summary = {
@@ -310,7 +318,7 @@ def run_error_analysis(root: Path, source: str) -> dict[str, Any]:
         },
         "residual_acf_lag1": round(float(acf[0]), 3),
         "residual_acf_lag24": round(float(acf[23]), 3),
-        "example_site": site,
+        "example_site": _site_name(root, site),
         "figures": out,
     }
     (rep / "error_analysis.json").write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")

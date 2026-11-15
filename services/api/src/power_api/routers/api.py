@@ -121,10 +121,29 @@ async def list_stations(request: Request, modeled: bool = True, s: AsyncSession 
     sts = await repo.stations(s, modeled_only=modeled)
     ch = await _champion_rows(s, request, T)
     worst = _worst_ratio(ch, request)
+    # Rough estimate for chargers without usage data: next-hour median per port across the forecast sites,
+    # times the charger's port count. Display only: never used for risk, alerts or accuracy.
+    ports = {x.station_id: x.total_ports for x in sts if x.is_modeled and x.total_ports}
+    per_port = None
+    if not ch.empty and ports:
+        nxt = ch.loc[(ch["h"] == 1) & ch["station_id"].isin(ports)]
+        if len(nxt):
+            per_port = float(np.median(nxt["q50"].to_numpy() / nxt["station_id"].map(ports).to_numpy()))
+
+    def kind(x: m.Station) -> str:
+        if x.is_modeled:
+            return "pilot"
+        return "discovered" if x.source == "osm" else "pilot_no_history"
+
     return [
         {
             "station_id": x.station_id,
             "name": x.name,
+            "kind": kind(x),
+            "estimate_next_hour_kwh": (
+                round(per_port * x.total_ports, 2) if (kind(x) == "discovered" and per_port is not None and x.total_ports)
+                else None
+            ),
             "latitude": x.latitude,
             "longitude": x.longitude,
             "total_ports": x.total_ports,
@@ -379,7 +398,23 @@ async def snapshot(request: Request, h: int = Query(1, ge=1, le=24), s: AsyncSes
 # ------------------------------------------------------------------ models
 @router.get("/models", tags=["models"])
 async def models(request: Request) -> dict[str, Any]:
-    man = request.app.state.engine.manifest
+    eng = request.app.state.engine
+    man = eng.manifest
+    if eng.deployment is not None:
+        c = eng.deployment.cfg
+        return {
+            "deployment": eng.deployment.public(),
+            "sites": [{"id": s.id, "name": s.name, "area": s.area, "latitude": s.latitude, "longitude": s.longitude,
+                       "osm": s.osm} for s in c.sites],
+            "weather": f"Open-Meteo observed weather at each {c.city} site",
+            "holidays": f"{c.holidays.country}-{c.holidays.subdiv} public holidays",
+            "timezone": c.timezone,
+            "assumptions": {
+                "transformer_kw": "diversity_factor x sum of port nameplate kW (synthetic; not public data)",
+                "demand": "replayed from the held-out period of the training data, aligned on local time",
+                "replay_weather": "archive (observed) weather is used as a perfect forecast in REPLAY mode",
+            },
+        }
     return {
         "version": man["version"],
         "git_sha": man["git_sha"],
@@ -622,7 +657,7 @@ async def datacard(request: Request) -> dict[str, Any]:
 def _report(request: Request, name: str) -> Any:
     import json
 
-    p = request.app.state.engine.root / "reports" / name
+    p = request.app.state.engine.reports_dir / name
     if not p.exists():
         raise HTTPException(404, f"reports/{name} not found: run `power-ml analyze`")
     return json.loads(p.read_text(encoding="utf-8"))
@@ -646,7 +681,7 @@ async def insights_stress(request: Request) -> dict[str, Any]:
 
 @router.get("/models/horizons", tags=["models"])
 async def model_horizons(request: Request, split: Literal["val", "test", "ood"] = "test") -> list[dict[str, Any]]:
-    p = request.app.state.engine.root / "reports" / f"metrics_by_horizon_{split}.csv"
+    p = request.app.state.engine.reports_dir / f"metrics_by_horizon_{split}.csv"
     if not p.exists():
         raise HTTPException(404, f"{p.name} not found")
     return pd.read_csv(p).round(4).to_dict(orient="records")

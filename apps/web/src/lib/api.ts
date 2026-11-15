@@ -120,6 +120,10 @@ export interface Station {
   poi_category: string;
   is_modeled: boolean;
   risk: Risk | null;
+  /** pilot = forecast site; pilot_no_history = pilot site with nothing to replay; discovered = OSM charger */
+  kind: "pilot" | "pilot_no_history" | "discovered";
+  /** discovered chargers only: rough next-hour estimate from the pilot sites' per-port median (display only) */
+  estimate_next_hour_kwh: number | null;
 }
 
 export interface SnapshotStation {
