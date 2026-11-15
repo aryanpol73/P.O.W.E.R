@@ -100,7 +100,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agents.router, prefix="/api/v1")
     app.include_router(push.router, prefix="/api/v1")
     app.include_router(ws.router)
-    figures = settings.repo_root / "reports" / "figures"
+    dep = settings.deployment  # the deployment's own analysis figures when `power-ml twin` has produced them
+    pune_figs = settings.repo_root / "reports" / dep.cfg.name / "figures" if dep else None
+    figures = pune_figs if pune_figs and pune_figs.is_dir() else settings.repo_root / "reports" / "figures"
     if figures.is_dir():  # report figures (SHAP, error analysis, stress test) for the Insights page
         app.mount("/figures", StaticFiles(directory=figures), name="figures")
     return app

@@ -1,0 +1,46 @@
+{
+  "model": "M4_lightgbm_quantile",
+  "tables": {
+    "station_id": "error_by_station_id.csv",
+    "saturated": "error_by_saturated.csv",
+    "temp_tercile": "error_by_temp_tercile.csv",
+    "rain": "error_by_rain.csv",
+    "is_holiday": "error_by_is_holiday.csv",
+    "h_bucket": "error_by_h_bucket.csv",
+    "weekday": "error_by_weekday.csv",
+    "hour": "error_by_hour.csv"
+  },
+  "highlights": {
+    "saturated": {
+      "not saturated": 0.4783,
+      "saturated": 0.3613
+    },
+    "temp_tercile": {
+      "cool": 0.6384,
+      "mild": 0.5115,
+      "warm": 0.4202
+    },
+    "rain": {
+      "dry": 0.4776,
+      "rain": 0.4576
+    },
+    "is_holiday": {
+      "false": 0.4715,
+      "true": 0.5524
+    },
+    "h_bucket": {
+      "1-3": 0.444,
+      "13-24": 0.4801,
+      "4-12": 0.4796
+    }
+  },
+  "residual_acf_lag1": 0.576,
+  "residual_acf_lag24": 0.008,
+  "example_site": "Mahadji Shinde Marg, Aundh",
+  "figures": {
+    "heatmap": "error_heatmap_weekday_hour.png",
+    "by_station": "error_by_station.png",
+    "acf": "residual_acf.png",
+    "example": "forecast_example.png"
+  }
+}

@@ -262,5 +262,14 @@ def analyze(source: Source = typer.Option(Source.palo_alto),
         typer.echo(f"seasonal PSI first alarm week: {st['seasonal_psi']['first_alarm_week']}")
 
 
+
+@app.command()
+def twin(deployment: str = typer.Option("pune", help="profile in configs/deployments/")) -> None:
+    """Evaluate the frozen models on a deployment twin -> reports/<deployment>/ (served by the console)."""
+    from power_ml.twin import run_twin
+
+    typer.echo(json.dumps(run_twin(_root(), deployment, log=typer.echo), indent=2))
+
+
 if __name__ == "__main__":
     app()

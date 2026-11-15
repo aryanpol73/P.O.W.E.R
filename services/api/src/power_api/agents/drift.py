@@ -42,8 +42,8 @@ def _val_bias_reference(path: str, champion: str, tz: str) -> tuple[float, float
     return float(b.mean()), float(b.std(ddof=0) or 1.0)
 
 
-def _test_wape(root: Path, champion: str) -> float | None:
-    p = root / "reports" / "metrics_test.json"
+def _test_wape(reports: Path, champion: str) -> float | None:
+    p = reports / "metrics_test.json"
     if not p.exists():
         return None
     return json.loads(p.read_text(encoding="utf-8"))["leaderboard"].get(champion, {}).get("wape")
@@ -92,9 +92,9 @@ async def run(session: AsyncSession, engine: ServingEngine, T: datetime, cfg: Dr
         d = obs_all.assign(day=day, tt=tt, e=obs_all["y"] - obs_all["q50"]).loc[day < last_complete]
         g = d.groupby("day").agg(e=("e", "sum"), f=("q50", "sum"), hours=("tt", "nunique"))
         g = g.loc[g["hours"] >= 20]  # the replay's first day is partial: too few hours for a stable daily bias
-        val = engine.root / "reports" / "predictions_val.parquet"
+        val = engine.reports_dir / "predictions_val.parquet"
         if len(g) and val.exists():
-            mu, sd = _val_bias_reference(str(val), champion, engine.dcfg.timezone)
+            mu, sd = _val_bias_reference(str(val), champion, engine.tz)
             cus = Cusum(k=cfg.cusum_k, h=cfg.cusum_h)
             alarms, stat = [], 0.0
             for dday, row in g.iterrows():
@@ -116,7 +116,7 @@ async def run(session: AsyncSession, engine: ServingEngine, T: datetime, cfg: Dr
         signals["coverage"] = {"is_drift": picp < cfg.coverage_min, "statistic": round(picp, 4),
                                "threshold": cfg.coverage_min, "details": {"rows": len(win)}}
         wape = float(metrics.wape(win["y"], win["q50"]))
-        ref = _test_wape(engine.root, champion)
+        ref = _test_wape(engine.reports_dir, champion)
         if ref:
             ratio = wape / ref
             signals["wape_ratio"] = {"is_drift": ratio > cfg.wape_ratio_max, "statistic": round(ratio, 4),

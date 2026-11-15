@@ -81,8 +81,16 @@ class WeatherCfg(BaseModel):
     interpolate_max_gap_hours: int = 3
 
 
+class HolidaysCfg(BaseModel):
+    country: str = "US"
+    subdiv: str | None = "CA"
+
+
 class DataConfig(BaseModel):
     timezone: str = "America/Los_Angeles"
+    holidays: HolidaysCfg = Field(default_factory=HolidaysCfg)
+    # Optional site labels for reports and figures (a deployment twin shows its own site names).
+    display_names: dict[str, str] = Field(default_factory=dict)
     palo_alto: PaloAltoCfg
     acn: AcnCfg
     window: WindowCfg

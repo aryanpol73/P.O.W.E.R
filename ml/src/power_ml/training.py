@@ -23,6 +23,7 @@ import pandas as pd
 import yaml
 
 from power_core import metrics
+from power_core.config import data_config
 from power_core.conformal import CQR, SplitConformal
 from power_core.splits import time_holdout
 from power_ml.models import (
@@ -188,7 +189,10 @@ def load_artifacts(root: Path, version: str | None = None) -> tuple[dict[str, An
     needs_panel = [m for m in models.values() if hasattr(m, "attach_panel")]
     if needs_panel:  # sequence models read hourly history from the panel (not pickled with them)
         panel = pd.read_parquet(root / "data" / "processed" / f"panel_{manifest['source']}.parquet")
-        for m in needs_panel:
+        dcfg = data_config(root)
+        for m in needs_panel:  # calendar inputs in the evaluated city's time zone and holidays
+            if hasattr(m, "tz"):
+                m.tz, m.holidays = dcfg.timezone, (dcfg.holidays.country, dcfg.holidays.subdiv)
             m.attach_panel(panel)
     return models, ens, manifest
 
