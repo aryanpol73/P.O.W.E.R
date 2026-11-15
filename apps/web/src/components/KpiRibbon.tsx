@@ -9,19 +9,19 @@ import { fmtNum } from "@/lib/format";
 function Tile({ label, value, unit, sub, tone, wide }: { label: string; value: string; unit?: string; sub?: string; tone?: Risk; wide?: boolean }) {
   return (
     <div className={clsx("card min-w-0 px-4 py-3", wide && "col-span-2 lg:col-span-1")}>
-      <div className="text-[11px] uppercase tracking-wider text-muted">{label}</div>
+      <div className="eyebrow">{label}</div>
       <div
         className={clsx(
-          "tabular mt-1 text-2xl font-semibold",
+          "kpi mt-1.5 text-2xl",
           tone === "CRITICAL" && "text-crit",
           tone === "WARNING" && "text-warn",
           tone === "NORMAL" && "text-ok",
         )}
       >
         {value}
-        {unit && <span className="ml-1 text-sm font-normal text-muted">{unit}</span>}
+        {unit && <span className="ml-1 text-sm font-medium tracking-normal text-muted">{unit}</span>}
       </div>
-      {sub && <div className="mt-0.5 truncate text-xs text-muted">{sub}</div>}
+      {sub && <div className="tabular mt-1 truncate text-xs text-muted">{sub}</div>}
     </div>
   );
 }

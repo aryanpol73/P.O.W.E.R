@@ -26,20 +26,20 @@ export default function StationsPage() {
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted">
                 <div>
-                  <div className="tabular text-base text-text">{s.total_ports}</div>ports
+                  <div className="kpi text-base text-text">{s.total_ports}</div>ports
                 </div>
                 <div>
-                  <div className="tabular text-base text-text">{fmtNum(s.rated_kw_total)}</div>kW nameplate
+                  <div className="kpi text-base text-text">{fmtNum(s.rated_kw_total)}</div>kW nameplate
                 </div>
                 <div>
-                  <div className="tabular text-base text-text">{s.poi_category.replace(/_/g, " ")}</div>site type
+                  <div className="text-base font-medium capitalize text-text">{s.poi_category.replace(/_/g, " ")}</div>site type
                 </div>
               </div>
               {!s.is_modeled && <p className="mt-2 text-xs text-muted">Opened after the modelling window, so it appears on the map as context only.</p>}
             </>
           );
           return s.is_modeled ? (
-            <Link key={s.station_id} href={`/stations/${s.station_id}`} className="card p-4 transition-colors hover:bg-surface-2">
+            <Link key={s.station_id} href={`/stations/${s.station_id}`} className="card card-link p-4">
               {body}
             </Link>
           ) : (

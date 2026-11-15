@@ -27,9 +27,9 @@ export function ShapWaterfall({ e }: { e: Explanation }) {
           <span className="truncate text-muted" title={b.label}>
             {b.label}
           </span>
-          <div className="relative h-4 rounded bg-surface-2">
+          <div className="relative h-4 rounded-sm bg-surface-2">
             <div
-              className="absolute top-0 h-4 rounded"
+              className="absolute top-0 h-4 rounded-sm"
               style={{
                 left: `${x(Math.min(b.start, b.end))}%`,
                 width: `${Math.max(0.6, Math.abs(x(b.end) - x(b.start)))}%`,
@@ -41,13 +41,13 @@ export function ShapWaterfall({ e }: { e: Explanation }) {
           <span className="tabular text-right">{b.base ? fmtNum(b.value) : `${b.value >= 0 ? "+" : ""}${fmtNum(b.value)}`}</span>
         </div>
       ))}
-      <div className="mt-1 grid grid-cols-[minmax(0,44%)_1fr_56px] items-center gap-2 border-t border-border pt-2 text-xs font-semibold">
+      <div className="mt-1 grid grid-cols-[minmax(0,44%)_1fr_56px] items-center gap-2 border-t border-divider pt-2 text-xs font-semibold">
         <span>forecast</span>
         <span />
         <span className="tabular text-right">{fmtNum(e.prediction)}</span>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted">
-        Red bars push the forecast up, blue bars pull it down. Values are TreeSHAP contributions of the champion model in kWh,
+        Red bars push the forecast up, violet bars pull it down. Values are TreeSHAP contributions of the champion model in kWh,
         so they add up exactly to the forecast.
       </p>
     </div>

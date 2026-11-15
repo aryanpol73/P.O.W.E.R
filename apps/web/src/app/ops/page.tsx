@@ -20,8 +20,8 @@ function Pill({ ok, label }: { ok: boolean | null; label: string }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-        ok === null ? "bg-surface-2 text-muted" : ok ? "bg-ok/15 text-ok" : "bg-crit/15 text-crit",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        ok === null ? "border-border bg-surface-2 text-muted" : ok ? "border-ok/35 bg-ok/10 text-ok" : "border-crit/35 bg-crit/10 text-crit",
       )}
     >
       {ok === null ? null : ok ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
@@ -34,13 +34,13 @@ function Signal({ d }: { d: DriftItem }) {
   const pct = d.kind === "coverage" ? `${fmtNum(d.statistic * 100, 1)}%` : fmtNum(d.statistic, 3);
   const rule = d.kind === "coverage" ? `alarm below ${fmtNum(d.threshold * 100, 0)}%` : `alarm above ${fmtNum(d.threshold, 2)}`;
   return (
-    <li className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+    <li className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm">
       <div className="min-w-0">
         <div className="font-medium">{SIGNAL_LABEL[d.kind] ?? d.kind}</div>
         <div className="text-xs text-muted">{rule}</div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="tabular">{pct}</span>
+        <span className="tabular font-medium">{pct}</span>
         <Pill ok={!d.is_drift} label={d.is_drift ? "drift" : "ok"} />
       </div>
     </li>
@@ -49,14 +49,14 @@ function Signal({ d }: { d: DriftItem }) {
 
 function RunCard({ r, active, onActivate, busy }: { r: RetrainRun; active: boolean; onActivate: () => void; busy: boolean }) {
   return (
-    <div className={clsx("rounded-lg border px-3 py-3 text-sm", active ? "border-accent" : "border-border")}>
+    <div className={clsx("rounded-lg border px-3 py-3 text-sm", active ? "border-accent/60 bg-accent-soft/40 shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_12%,transparent)]" : "border-border")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="font-medium">
-          {r.run_id} {active && <span className="ml-1 text-xs text-accent">(live champion)</span>}
+          {r.run_id} {active && <span className="ml-1 rounded-full bg-accent-soft px-1.5 py-px text-[11px] font-semibold text-accent">live champion</span>}
         </div>
         <Pill ok={r.passed} label={r.passed ? "gate passed" : "gate failed"} />
       </div>
-      <div className="mt-1 text-xs text-muted">
+      <div className="tabular mt-1 text-xs text-muted">
         data up to {fmtTime(r.as_of)} · {r.train_rows.toLocaleString()} training rows · {fmtNum(r.seconds, 0)} s
       </div>
       <table className="mt-2 w-full text-xs">
@@ -88,7 +88,7 @@ function RunCard({ r, active, onActivate, busy }: { r: RetrainRun; active: boole
         ))}
       </ul>
       {!active && (
-        <button onClick={onActivate} disabled={busy} className="mt-2 text-xs text-accent underline disabled:opacity-50">
+        <button onClick={onActivate} disabled={busy} aria-busy={busy} className="btn btn-ghost btn-sm mt-2 -ml-2 text-accent">
           make this the live champion
         </button>
       )}
@@ -125,7 +125,7 @@ export default function OpsPage() {
           models; a promoted challenger only changes live forecasts and can be rolled back.
         </p>
       </div>
-      {msg && <p className="card px-4 py-2 text-xs text-muted">{msg}</p>}
+      {msg && <p className="card overflow-x-auto px-4 py-2 font-mono text-[11px] text-muted">{msg}</p>}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {st &&
@@ -140,7 +140,7 @@ export default function OpsPage() {
                 )}
               </div>
               <div className="mt-1 text-xs text-muted">{a.description}</div>
-              <div className="mt-2 text-xs">
+              <div className="tabular mt-2 text-xs text-muted">
                 {a.runs.toLocaleString()} runs{a.last_finished_at ? ` · last ${new Date(a.last_finished_at).toLocaleTimeString()}` : ""}
               </div>
             </div>
@@ -154,7 +154,8 @@ export default function OpsPage() {
             <button
               onClick={() => act.mutate(api.runDrift)}
               disabled={act.isPending}
-              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
+              aria-busy={act.isPending}
+              className="btn btn-secondary btn-sm"
             >
               <Search size={13} /> Check now
             </button>
@@ -164,7 +165,7 @@ export default function OpsPage() {
           </p>
           <ul className="flex flex-col gap-2">{drift.data?.latest.map((d) => <Signal key={d.kind} d={d} />)}</ul>
           {drift.data?.recommend_retrain && (
-            <div className="flex gap-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-xs">
+            <div className="flex gap-2 rounded-lg border border-warn/45 bg-warn/10 px-3 py-2 text-xs font-medium">
               <CircleAlert size={14} className="mt-0.5 shrink-0 text-warn" />
               Two or more signals fired together: a retrain is recommended.
             </div>
@@ -182,7 +183,7 @@ export default function OpsPage() {
                         <span
                           key={day}
                           title={`${fmtTime(day)}: ${c ? fmtNum(c.statistic, 3) : "n/a"}`}
-                          className={clsx("h-3 rounded-sm", !c ? "bg-surface-2" : c.is_drift ? "bg-crit" : "bg-ok/60")}
+                          className={clsx("h-3 rounded-[3px]", !c ? "bg-surface-2" : c.is_drift ? "bg-crit" : "bg-ok/55")}
                         />
                       );
                     })}
@@ -200,7 +201,8 @@ export default function OpsPage() {
               <button
                 onClick={() => act.mutate(() => api.startRetrain(true))}
                 disabled={act.isPending || retraining}
-                className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+                aria-busy={retraining}
+                className="btn btn-primary btn-sm"
               >
                 {retraining ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
                 {retraining ? "Retraining…" : "Retrain now"}
@@ -209,7 +211,7 @@ export default function OpsPage() {
                 <button
                   onClick={() => act.mutate(api.rollback)}
                   disabled={act.isPending}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
+                  className="btn btn-danger btn-sm"
                 >
                   <RotateCcw size={13} /> Roll back
                 </button>
@@ -245,7 +247,8 @@ export default function OpsPage() {
         <button
           onClick={() => act.mutate(api.runDiscovery)}
           disabled={act.isPending}
-          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
+          aria-busy={act.isPending}
+          className="btn btn-secondary btn-sm"
         >
           <MapPinned size={13} /> Discover now
         </button>
@@ -264,7 +267,7 @@ export default function OpsPage() {
           <button
             onClick={() => act.mutate(api.testPush)}
             disabled={act.isPending}
-            className="rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
+            className="btn btn-ghost btn-sm"
           >
             Send test
           </button>
@@ -274,15 +277,15 @@ export default function OpsPage() {
       {st && (
         <section className="card grid gap-2 p-4 text-xs sm:grid-cols-3">
           <div>
-            <div className="text-muted">Telemetry buffer</div>
+            <div className="eyebrow mb-1">Telemetry buffer</div>
             <Pill ok={st.buffer.healthy} label={st.buffer.healthy ? "fresh" : `${fmtNum(st.buffer.lag_hours, 0)} h behind`} />
           </div>
           <div>
-            <div className="text-muted">Live WebSocket clients</div>
-            <div className="tabular text-sm">{st.ws_subscribers}</div>
+            <div className="eyebrow mb-1">Live WebSocket clients</div>
+            <div className="kpi text-sm">{st.ws_subscribers}</div>
           </div>
           <div>
-            <div className="text-muted">Simulator</div>
+            <div className="eyebrow mb-1">Simulator</div>
             <div className="text-sm">{st.last_error ? <span className="text-crit">{st.last_error}</span> : st.sim?.paused ? "paused" : "running"}</div>
           </div>
         </section>

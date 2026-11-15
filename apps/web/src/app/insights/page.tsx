@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { api } from "@/lib/api";
+import { AXIS, GRID, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart";
 import { fmtNum, modelLabel } from "@/lib/format";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -29,7 +30,7 @@ function Figure({ name, caption }: { name: string; caption: string }) {
   return (
     <figure className="card overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={api.figure(name)} alt={caption} loading="lazy" className="w-full bg-white" />
+      <img src={api.figure(name)} alt={caption} loading="lazy" className="w-full border-b border-divider bg-white" />
       <figcaption className="px-4 py-2 text-xs text-muted">{caption}</figcaption>
     </figure>
   );
@@ -60,10 +61,10 @@ export default function InsightsPage() {
           <p className="mb-2 text-xs text-muted">Recurring weekly and daily patterns dominate; weather barely mattered in the mild training climate (Palo Alto, USA).</p>
           <ResponsiveContainer width="100%" height={340}>
             <BarChart data={top} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" stroke="var(--muted)" tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="f" width={170} stroke="var(--muted)" tick={{ fontSize: 11 }} interval={0} />
-              <Tooltip formatter={(v) => [`${fmtNum(Number(v), 3)} kWh`, "mean |SHAP|"]} contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12 }} />
+              <CartesianGrid {...GRID} vertical horizontal={false} />
+              <XAxis type="number" {...AXIS} />
+              <YAxis type="category" dataKey="f" width={170} {...AXIS} axisLine={false} interval={0} />
+              <Tooltip formatter={(v) => [`${fmtNum(Number(v), 3)} kWh`, "mean |SHAP|"]} contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} cursor={{ fill: "var(--accent-soft)", opacity: 0.6 }} />
               <Bar dataKey="v" fill="var(--accent)" radius={[0, 4, 4, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
@@ -76,8 +77,8 @@ export default function InsightsPage() {
               {groups.map(({ g, v }) => (
                 <li key={g} className="grid grid-cols-[110px_1fr_60px] items-center gap-2 text-xs">
                   <span className="capitalize">{g}</span>
-                  <div className="h-2 rounded bg-surface-2">
-                    <div className="h-2 rounded bg-accent" style={{ width: `${(v / (groups[0]?.v || 1)) * 100}%` }} />
+                  <div className="h-2 rounded-full bg-surface-2">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-accent/70 to-accent" style={{ width: `${(v / (groups[0]?.v || 1)) * 100}%` }} />
                   </div>
                   <span className="tabular text-right">{fmtNum(v, 2)}</span>
                 </li>
@@ -109,12 +110,12 @@ export default function InsightsPage() {
           <div className="mt-3 grid gap-4 md:grid-cols-3">
             <div className="text-sm">
               <div className="text-xs text-muted">First drift alarm in the COVID period</div>
-              <div className="text-lg font-semibold">{st.cusum?.first_alarm_in_covid_period ?? "-"}</div>
+              <div className="kpi text-lg">{st.cusum?.first_alarm_in_covid_period ?? "-"}</div>
               <div className="text-xs text-muted">CUSUM on daily forecast bias · {testAlarms.length} alarms in the 172 normal test days</div>
             </div>
             <div className="text-sm">
               <div className="text-xs text-muted">Demand-distribution alarm (seasonal PSI)</div>
-              <div className="text-lg font-semibold">week of {st.seasonal_psi?.first_alarm_week ?? "-"}</div>
+              <div className="kpi text-lg">week of {st.seasonal_psi?.first_alarm_week ?? "-"}</div>
               <div className="text-xs text-muted">Santa Clara County shelter-in-place: 17 Mar 2020</div>
             </div>
             <div className="text-xs">

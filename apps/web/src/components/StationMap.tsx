@@ -11,7 +11,20 @@ import { fmtNum, fmtPct } from "@/lib/format";
 
 const STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
 const prefersDark = () => typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-const COLORS = { NORMAL: "#1f9d55", WARNING: "#d98e04", CRITICAL: "#d23b3b", CONTEXT: "#8a96a8", ARC: "#1f4fd1" };
+const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// MapLibre paints on a canvas, so it cannot use var(); resolve the design tokens once the map loads.
+const TOKENS = {
+  NORMAL: "--ok", WARNING: "--warn", CRITICAL: "--crit", CONTEXT: "--context", ARC: "--accent",
+  STROKE: "--pin-stroke", LABEL: "--map-label", HALO: "--map-label-halo",
+} as const;
+type Palette = Record<keyof typeof TOKENS, string>;
+function readPalette(): Palette {
+  const cs = getComputedStyle(document.documentElement);
+  return Object.fromEntries(Object.entries(TOKENS).map(([k, v]) => [k, cs.getPropertyValue(v).trim()])) as Palette;
+}
+// legend swatches stay in the DOM, so they can use the variables directly
+const LEGEND = { NORMAL: "var(--ok)", WARNING: "var(--warn)", CRITICAL: "var(--crit)", ARC: "var(--accent)" };
 
 function arc(a: [number, number], b: [number, number], steps = 24): [number, number][] {
   // quadratic Bezier with the control point offset perpendicular to the chord
@@ -70,29 +83,33 @@ export function StationMap({ snapshot, onSelect }: { snapshot: Snapshot | undefi
       if (!m.isStyleLoaded() && String(e.error?.message ?? "").length) setFailed(true);
     });
     m.on("load", () => {
+      const C = readPalette();
       const empty = { type: "FeatureCollection" as const, features: [] };
       m.addSource("stations", { type: "geojson", data: empty });
       m.addSource("arcs", { type: "geojson", data: empty });
       m.addLayer({
         id: "arcs", type: "line", source: "arcs",
-        paint: { "line-color": COLORS.ARC, "line-width": ["interpolate", ["linear"], ["get", "kwh"], 0, 2, 10, 6], "line-dasharray": [2, 1.5], "line-opacity": 0.85 },
+        layout: { "line-cap": "round" },
+        paint: { "line-color": C.ARC, "line-width": ["interpolate", ["linear"], ["get", "kwh"], 0, 2, 10, 6], "line-dasharray": [2, 1.5], "line-opacity": 0.9 },
       });
       m.addLayer({
         id: "halo", type: "circle", source: "stations", filter: ["==", ["get", "risk"], "CRITICAL"],
-        paint: { "circle-color": COLORS.CRITICAL, "circle-radius": 22, "circle-opacity": 0.25, "circle-blur": 0.4 },
+        paint: { "circle-color": C.CRITICAL, "circle-radius": 24, "circle-opacity": 0.28, "circle-blur": 0.45 },
       });
       m.addLayer({
         id: "stations", type: "circle", source: "stations",
         paint: {
-          "circle-color": ["match", ["get", "risk"], "CRITICAL", COLORS.CRITICAL, "WARNING", COLORS.WARNING, "NORMAL", COLORS.NORMAL, COLORS.CONTEXT],
+          "circle-color": ["match", ["get", "risk"], "CRITICAL", C.CRITICAL, "WARNING", C.WARNING, "NORMAL", C.NORMAL, C.CONTEXT],
           "circle-radius": ["interpolate", ["linear"], ["get", "q50"], 0, 7, 10, 12, 40, 22],
-          "circle-stroke-color": "#ffffff", "circle-stroke-width": 2, "circle-opacity": 0.92,
+          "circle-stroke-color": C.STROKE,
+          "circle-stroke-width": ["match", ["get", "risk"], "CRITICAL", 2.5, "CONTEXT", 1.5, 2],
+          "circle-opacity": ["match", ["get", "risk"], "CONTEXT", 0.75, 0.95],
         },
       });
       m.addLayer({
         id: "labels", type: "symbol", source: "stations", filter: ["==", ["get", "modeled"], true], // grey context pins stay unlabelled
         layout: { "text-field": ["get", "name"], "text-size": 11, "text-offset": [0, 1.9], "text-font": ["Noto Sans Regular"] },
-        paint: { "text-color": dark ? "#e6ecf5" : "#1b2a3d", "text-halo-color": dark ? "#0b1220" : "#ffffff", "text-halo-width": 1.4 },
+        paint: { "text-color": C.LABEL, "text-halo-color": C.HALO, "text-halo-width": 1.6 },
       });
       m.on("mouseenter", "stations", () => (m.getCanvas().style.cursor = "pointer"));
       m.on("mouseleave", "stations", () => (m.getCanvas().style.cursor = ""));
@@ -115,13 +132,15 @@ export function StationMap({ snapshot, onSelect }: { snapshot: Snapshot | undefi
     let raf = 0;
     const pulse = (t: number) => {
       if (m.getLayer("halo")) {
-        const k = (t % 1600) / 1600;
-        m.setPaintProperty("halo", "circle-radius", 16 + 18 * k);
-        m.setPaintProperty("halo", "circle-opacity", 0.35 * (1 - k));
+        const k = (t % 1800) / 1800;
+        const e = 1 - (1 - k) ** 3; // ease-out: fast bloom, slow fade
+        m.setPaintProperty("halo", "circle-radius", 16 + 20 * e);
+        m.setPaintProperty("halo", "circle-opacity", 0.4 * (1 - e));
       }
       raf = requestAnimationFrame(pulse);
     };
-    raf = requestAnimationFrame(pulse);
+    // with reduced motion the halo stays as a static ring (still marks CRITICAL)
+    if (!reducedMotion()) raf = requestAnimationFrame(pulse);
     return () => {
       cancelAnimationFrame(raf);
       m.remove();
@@ -145,7 +164,7 @@ export function StationMap({ snapshot, onSelect }: { snapshot: Snapshot | undefi
   }, [ready, snapshot]);
 
   return (
-    <div className="relative h-full min-h-[360px] overflow-hidden rounded-[14px]">
+    <div className="relative h-full min-h-[360px] overflow-hidden rounded-lg border border-divider">
       {/* sized directly: maplibre-gl.css sets .maplibregl-map { position: relative }, which would cancel absolute positioning */}
       <div ref={el} className="h-full min-h-[360px] w-full" />
       {failed && (
@@ -153,15 +172,15 @@ export function StationMap({ snapshot, onSelect }: { snapshot: Snapshot | undefi
           Map tiles could not be loaded (offline?). Station data is still listed alongside.
         </div>
       )}
-      <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-3 rounded-lg bg-surface/90 px-3 py-2 text-[11px] text-muted shadow">
+      <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-3 rounded-lg border border-border bg-[var(--glass-strong)] px-3 py-2 text-[11px] font-medium text-muted shadow-[var(--shadow)] backdrop-blur-md">
         {(["NORMAL", "WARNING", "CRITICAL"] as const).map((r) => (
           <span key={r} className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ background: COLORS[r] }} />
+            <span className="size-2.5 rounded-full ring-2 ring-[var(--pin-stroke)]" style={{ background: LEGEND[r] }} />
             {r.toLowerCase()}
           </span>
         ))}
         <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4" style={{ background: COLORS.ARC }} /> reroute
+          <span className="h-0.5 w-4 rounded-full" style={{ background: LEGEND.ARC }} /> reroute
         </span>
         <span>size = forecast load</span>
       </div>
