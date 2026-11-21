@@ -2,6 +2,9 @@
 
     uv run python scripts/make_bundle.py                    # -> dist/power-runtime.tar.gz
     uv run python scripts/make_bundle.py --reports pune
+    uv run python scripts/make_bundle.py --no-db             # skip the pre-seeded SQLite database
+
+The pre-seeded database (data/seed.sqlite, for --deployment) lets 512 MB hosts skip seeding at start-up.
 
 Upload the file as a GitHub release asset and set POWER_BUNDLE_URL to its download link.
 """
@@ -9,6 +12,9 @@ Upload the file as a GitHub release asset and set POWER_BUNDLE_URL to its downlo
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -22,6 +28,8 @@ def main() -> None:
     ap.add_argument("--source", default="palo_alto")
     ap.add_argument("--reports", default="pune", help="the reports folder the deployment serves")
     ap.add_argument("--out", default="dist/power-runtime.tar.gz")
+    ap.add_argument("--deployment", default="maharashtra")
+    ap.add_argument("--no-db", action="store_true")
     a = ap.parse_args()
     out = ROOT / a.out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -36,6 +44,15 @@ def main() -> None:
                     continue
                 tar.add(f, arcname=f.relative_to(ROOT).as_posix())
                 n += 1
+        if not a.no_db:
+            db = out.parent / "seed.sqlite"
+            db.unlink(missing_ok=True)
+            env = {**os.environ, "POWER_ROOT": str(ROOT), "POWER_SOURCE": a.source,
+                   "POWER_DEPLOYMENT": a.deployment, "DATABASE_URL": f"sqlite+aiosqlite:///{db.as_posix()}"}
+            subprocess.run([sys.executable, "-m", "power_api.cli", "seed"], check=True, env=env,
+                           stdout=subprocess.DEVNULL)
+            tar.add(db, arcname="data/seed.sqlite")
+            n += 1
     print(f"{out.relative_to(ROOT)}: {n} files, {out.stat().st_size / 1e6:.0f} MB")
 
 

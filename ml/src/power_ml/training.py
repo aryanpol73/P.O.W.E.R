@@ -10,6 +10,7 @@ Data usage, block by block:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 import warnings
@@ -178,8 +179,10 @@ def load_artifacts(root: Path, version: str | None = None) -> tuple[dict[str, An
     d = artifacts_dir(root, version or cfg["version"])
     manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
     models = {}
+    # POWER_SKIP_MODELS=M2_random_forest,M5_lstm keeps small hosts (512 MB) within memory.
+    skip = {x.strip() for x in os.environ.get("POWER_SKIP_MODELS", "").split(",") if x.strip()}
     for n in manifest["models"]:
-        if n == "E1_ensemble":
+        if n == "E1_ensemble" or n in skip:
             continue
         try:
             models[n] = joblib.load(d / f"{n}.joblib")

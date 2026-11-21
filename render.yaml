@@ -1,0 +1,55 @@
+# Render Blueprint (free plan): API + copilot. The console runs on Vercel. See docs/DEPLOY.md.
+# Free instances have 512 MB RAM and sleep after 15 idle minutes, so the API runs without PyTorch (LSTM) and
+# the random forest, and starts from the pre-seeded SQLite file in the runtime bundle.
+services:
+  - type: web
+    name: power-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: services/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: TORCH # build arg: no PyTorch in the image
+        value: none
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////app/data/power.db
+      - key: POWER_DEPLOYMENT
+        value: maharashtra
+      - key: SIM_MODE
+        value: LIVE_SHADOW
+      - key: POWER_SKIP_MODELS
+        value: M2_random_forest,M5_lstm
+      - key: POWER_BUNDLE_URL # GitHub release asset link (docs/DEPLOY.md)
+        sync: false
+      - key: CORS_ORIGINS # the Vercel URL, no trailing slash
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true
+
+  - type: web
+    name: power-copilot
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: services/mcp/Dockerfile
+    dockerContext: .
+    healthCheckPath: /copilot/status
+    envVars:
+      - key: PORT
+        value: "8765"
+      - key: POWER_API_URL # the power-api URL, e.g. https://power-api-xxxx.onrender.com
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: POWER_COPILOT_TOKEN
+        generateValue: true
+      - key: POWER_COPILOT_EFFORT
+        value: low

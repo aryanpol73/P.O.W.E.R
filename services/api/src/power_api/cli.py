@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -27,6 +29,8 @@ def seed(
     from power_api.seed import seed as run_seed
 
     s = get_settings()
+    if _restore_snapshot(s):
+        return
     deadline = time.monotonic() + wait
     while True:  # a fresh PostgreSQL container restarts once after initdb; do not race it
         try:
@@ -47,6 +51,25 @@ def seed(
                     return
     typer.echo(f"seeding {_masked(s.db_url)}")
     typer.echo(json.dumps(run_seed(make_sync_engine(s.db_url), s.repo_root, s.source, s.deployment), indent=2))
+
+
+def _restore_snapshot(s: Any) -> bool:
+    """Small hosts: copy the pre-seeded SQLite file from the bundle instead of seeding (seeding peaks ~730 MB)."""
+    import shutil
+
+    from sqlalchemy.engine import make_url
+
+    url = make_url(s.db_url)
+    snap = s.repo_root / "data" / "seed.sqlite"
+    if not url.drivername.startswith("sqlite") or not url.database or not snap.exists():
+        return False
+    db = Path(url.database)
+    if db.exists() and db.stat().st_size > 0:
+        return False
+    db.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(snap, db)
+    typer.echo(f"restored the pre-seeded database ({snap.stat().st_size / 1e6:.0f} MB)")
+    return True
 
 
 def _masked(url: str) -> str:

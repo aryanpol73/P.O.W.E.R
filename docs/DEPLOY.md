@@ -49,6 +49,32 @@ docker compose stop tunnel edge
 Set `POWER_PUBLIC_API_URL=http://localhost:8011` in `.env` (or delete the line) and run
 `docker compose up -d --build web`; the console is then at http://localhost:3011 again.
 
+## Hosted for free: Vercel (console) + Render (API and copilot)
+
+Always reachable at fixed addresses, without your PC. Free Render services have 512 MB of RAM and sleep
+after 15 idle minutes (the first visit after that waits about a minute). To fit, the hosted API serves
+9 of the 11 models (no LSTM, no random forest) and the live history restarts after each sleep.
+
+1. **Runtime bundle.** `uv run python scripts/make_bundle.py` writes `dist/power-runtime.tar.gz`
+   (about 150 MB: models, configs and a pre-seeded database; never `.env` or VAPID keys). On GitHub:
+   **Releases → Draft a new release**, tag `runtime-2026.11.0`, attach the file, publish, and copy the
+   asset link.
+2. **Render.** render.com → **New → Blueprint** → pick this repo (it reads `render.yaml`). Fill in:
+   `POWER_BUNDLE_URL` (step 1), `CORS_ORIGINS` (the Vercel URL from step 3; set it after step 3 if
+   needed), `VAPID_*` (`uv run power-api vapid-keys`), and for `power-copilot`: `POWER_API_URL` (the
+   `power-api` URL) and `GROQ_API_KEY`. `ADMIN_TOKEN` and `POWER_COPILOT_TOKEN` are generated; copy them.
+3. **Vercel.** vercel.com → **Add New → Project** → this repo, **Root Directory `apps/web`**. Environment:
+
+   | Name | Value |
+   |---|---|
+   | `NEXT_PUBLIC_API_URL`, `POWER_API_URL` | the `power-api` URL |
+   | `POWER_MCP_URL` | the `power-copilot` URL |
+   | `ADMIN_TOKEN`, `POWER_COPILOT_TOKEN` | the values Render generated |
+
+   Deploy, then set Render's `CORS_ORIGINS` to the exact Vercel URL (no trailing slash).
+
+Updating: push to `main`; Vercel and Render rebuild. New models: new bundle, new `POWER_BUNDLE_URL`.
+
 ## Hosted option (paid)
 
 `deploy/hf-space/` holds a tested Hugging Face Space setup (Gradio SDK, needs HF PRO); see its README.
