@@ -82,23 +82,45 @@ export default function StationsPage() {
         : (RISK_ORDER[a.risk ?? "NORMAL"] - RISK_ORDER[b.risk ?? "NORMAL"]) || a.name.localeCompare(b.name),
     );
   const discovered = (data ?? []).filter((s) => s.kind === "discovered").sort((a, b) => b.total_ports - a.total_ports || a.name.localeCompare(b.name));
+  const dep = useQuery({ queryKey: ["deployment"], queryFn: api.deployment, staleTime: Infinity });
+  const region = dep.data?.city ?? "Pilot";
+  // cities in profile order (largest first would hide the smaller ones under the fold)
+  const order = (dep.data?.cities ?? []).map((c) => c.name);
+  const groups = (list: Station[]) => {
+    const by = new Map<string, Station[]>();
+    for (const s of list) {
+      const k = s.city ?? region;
+      by.set(k, [...(by.get(k) ?? []), s]);
+    }
+    return [...by.entries()].sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99));
+  };
+  const multi = order.length > 1;
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Pune pilot sites</h1>
+          <h1 className="text-lg font-semibold">{region} pilot sites</h1>
           <p className="text-sm text-muted">
-            The {pilot.filter((s) => s.kind === "pilot").length} forecast sites, highest risk first. Risk compares the next 12 hours with the assumed
-            transformer capacity. Open a site for its forecast and explanation.
+            The {pilot.filter((s) => s.kind === "pilot").length} forecast sites{multi ? ` in ${order.length} cities` : ""}, highest risk first. Risk
+            compares the next 12 hours with the assumed transformer capacity. Open a site for its forecast and explanation.
           </p>
         </div>
         {isError && <p className="text-sm text-crit">Cannot reach the API.</p>}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {pilot.map((s) => (
-            <PilotCard key={s.station_id} s={s} />
-          ))}
-        </div>
+        {groups(pilot).map(([c, list]) => (
+          <div key={c} className="flex flex-col gap-2">
+            {multi && (
+              <h2 className="text-sm font-semibold text-muted">
+                {c} <span className="font-normal">· {list.length} {list.length === 1 ? "site" : "sites"}</span>
+              </h2>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {list.map((s) => (
+                <PilotCard key={s.station_id} s={s} />
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       {discovered.length > 0 && (
@@ -106,15 +128,20 @@ export default function StationsPage() {
           <div>
             <h2 className="text-base font-semibold">Other chargers nearby ({discovered.length})</h2>
             <p className="text-sm text-muted">
-              Public chargers in Pune found on OpenStreetMap. Their operators publish no usage data, so they are not forecast and never raise alerts.
+              Public chargers in {region} found on OpenStreetMap. Their operators publish no usage data, so they are not forecast and never raise alerts.
               The estimate is a rough guide only: the pilot sites&apos; typical next-hour energy per port, times this charger&apos;s port count.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {discovered.map((s) => (
-              <DiscoveredCard key={s.station_id} s={s} />
-            ))}
-          </div>
+          {groups(discovered).map(([c, list]) => (
+            <div key={c} className="flex flex-col gap-2">
+              {multi && <h3 className="text-sm font-semibold text-muted">{c} <span className="font-normal">· {list.length}</span></h3>}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {list.map((s) => (
+                  <DiscoveredCard key={s.station_id} s={s} />
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       )}
     </div>

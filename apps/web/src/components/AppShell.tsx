@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img src="/icons/logo.png" alt="" width={32} height={32} className="size-8 rounded-[10px] shadow-[0_6px_16px_-6px_rgba(34,197,94,0.7)]" />
             <span className="hidden text-sm font-extrabold tracking-[0.06em] sm:inline">P.O.W.E.R.</span>
           </Link>
-          <TwinBadge city={dep.data?.city} isTwin={dep.data?.is_twin} />
+          <TwinBadge city={dep.data?.city} isTwin={dep.data?.is_twin} cities={dep.data?.cities?.length} />
           <NavTabs activeIndex={activeIndex} isActive={isActive} />
         </div>
         <div className="flex-1" />
@@ -126,7 +126,7 @@ function NavTabs({ activeIndex, isActive }: { activeIndex: number; isActive: (hr
 }
 
 // The pilot-twin disclaimer used to live in the sidebar footer; it now opens from a badge.
-function TwinBadge({ city, isTwin }: { city?: string; isTwin?: boolean }) {
+function TwinBadge({ city, isTwin, cities }: { city?: string; isTwin?: boolean; cities?: number }) {
   return (
     <details className="group relative hidden sm:block">
       <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold tracking-[0.04em] text-amber ring-1 ring-amber/30 ring-inset hover:bg-amber/10 [&::-webkit-details-marker]:hidden">
@@ -137,8 +137,9 @@ function TwinBadge({ city, isTwin }: { city?: string; isTwin?: boolean }) {
         {isTwin ? (
           <>
             <strong className="mb-1 block text-sm text-text">Pilot digital twin</strong>
-            Pune sites and weather, Indian holidays, IST. Models trained on US open charging data (2017–2020) and not yet validated on Indian
-            demand. Transformer ratings are a planning assumption.
+            Real {city ?? "local"} charging sites{cities ? ` in ${cities} cities` : ""} with their own weather, Indian holidays and IST. Models
+            trained on US open charging data (2017–2020) and not yet validated on Indian demand. Transformer ratings are a planning
+            assumption.
           </>
         ) : (
           <>Project #41. Transformer ratings are a planning assumption.</>

@@ -17,7 +17,7 @@ x-api-env: &api-env
   DATABASE_URL: postgresql+asyncpg://power:${POSTGRES_PASSWORD:-power}@db:5432/power
   POWER_ROOT: /app
   POWER_SOURCE: palo_alto
-  POWER_DEPLOYMENT: ${POWER_DEPLOYMENT:-pune}
+  POWER_DEPLOYMENT: ${POWER_DEPLOYMENT:-maharashtra}
   SIM_MODE: ${SIM_MODE:-REPLAY}
   SIM_TICK_SECONDS: ${SIM_TICK_SECONDS:-10}
   ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}

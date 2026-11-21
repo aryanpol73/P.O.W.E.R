@@ -1,4 +1,4 @@
-// Display helpers. The live console serves the Pune deployment, so times are shown in IST and numbers
+// Display helpers. The live console serves the Maharashtra deployment, so times are shown in IST and numbers
 // use the Indian locale. Override with NEXT_PUBLIC_SITE_TZ / NEXT_PUBLIC_LOCALE for another deployment.
 
 export const SITE_TZ = process.env.NEXT_PUBLIC_SITE_TZ ?? "Asia/Kolkata";

@@ -25,7 +25,7 @@ const SUGGESTIONS = [
   "Which sites are at risk in the next 12 hours, and why?",
   "What drives tonight's peak at Westend Mall?",
   "Simulate a +6 °C heatwave across the network.",
-  "Which model is most accurate at the Pune sites, held-out and live?",
+  "Which Mumbai sites are busiest in the next 6 hours?",
 ];
 
 /** Minimal, injection-safe rendering of the model's text: **bold** and "-" / "*" bullets (React escapes the rest). */

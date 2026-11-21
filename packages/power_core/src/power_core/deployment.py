@@ -32,6 +32,10 @@ class Site(BaseModel):
     poi: str = "commercial"
     osm: str | None = None
     donor: str
+    city: str = ""  # empty = the deployment's city
+    # Replay the donor's demand from this many weeks earlier. Lets one training site back several deployed
+    # sites without identical curves (each (donor, offset) pair is unique).
+    replay_offset_weeks: int = 0
 
 
 class HolidayCfg(BaseModel):
@@ -51,6 +55,7 @@ class DeploymentCfg(BaseModel):
     model_source: str
     donor_timezone: str
     weather_cache: str
+    reports: str | None = None  # folder under reports/ with this deployment's evaluation (default: name)
     sites: list[Site]
 
 
@@ -58,13 +63,43 @@ class DeploymentCfg(BaseModel):
 class Deployment:
     cfg: DeploymentCfg
     site_to_donor: dict[str, str] = field(init=False)
-    donor_to_site: dict[str, str] = field(init=False)
+    donor_to_site: dict[str, str] = field(init=False)  # first site per donor (round 0)
+    rounds: list[dict[str, str]] = field(init=False)  # site -> donor, no donor twice within a round
 
     def __post_init__(self) -> None:
-        self.site_to_donor = {s.id: s.donor for s in self.cfg.sites}
-        self.donor_to_site = {s.donor: s.id for s in self.cfg.sites}
-        if len(self.donor_to_site) != len(self.site_to_donor):
-            raise ValueError("each donor station may back only one deployed site")
+        sites = self.cfg.sites
+        if len({s.id for s in sites}) != len(sites):
+            raise ValueError("site ids must be unique")
+        if len({(s.donor, s.replay_offset_weeks) for s in sites}) != len(sites):
+            raise ValueError("each (donor, replay_offset_weeks) pair may back only one deployed site")
+        self.site_to_donor = {s.id: s.donor for s in sites}
+        self.rounds = []
+        for s in sites:  # first round in which this donor is still free
+            for r in self.rounds:
+                if s.donor not in r.values():
+                    r[s.id] = s.donor
+                    break
+            else:
+                self.rounds.append({s.id: s.donor})
+        self.donor_to_site = {d: sid for sid, d in self.rounds[0].items()} if self.rounds else {}
+
+    def site(self, site_id: str) -> Site | None:
+        return next((s for s in self.cfg.sites if s.id == site_id), None)
+
+    def city_of(self, site: Site) -> str:
+        return site.city or self.cfg.city
+
+    @property
+    def cities(self) -> list[dict[str, object]]:
+        """Each city with its site count and centre, in profile order."""
+        out: dict[str, list[Site]] = {}
+        for s in self.cfg.sites:
+            out.setdefault(self.city_of(s), []).append(s)
+        return [
+            {"name": c, "sites": len(v), "latitude": round(sum(x.latitude for x in v) / len(v), 5),
+             "longitude": round(sum(x.longitude for x in v) / len(v), 5)}
+            for c, v in out.items()
+        ]
 
     @property
     def timezone(self) -> str:
@@ -102,12 +137,14 @@ class Deployment:
         hour is dropped (first occurrence kept) and the missing spring hour is filled with the previous
         hour's values, so the result is a gap-free hourly grid per site.
         """
-        df = panel.loc[panel["station_id"].isin(self.donor_to_site)].copy()
-        df["ts"] = self.retime(df["ts"])
-        df = df.dropna(subset=["ts"]).drop_duplicates(["station_id", "ts"], keep="first")
-        df["station_id"] = df["station_id"].map(self.donor_to_site)
         parts = []
-        for sid, g in df.groupby("station_id", sort=True):
+        for site in sorted(self.cfg.sites, key=lambda x: x.id):
+            g = panel.loc[panel["station_id"] == site.donor].copy()
+            if g.empty:
+                continue
+            g["ts"] = self.retime(pd.to_datetime(g["ts"], utc=True) + pd.Timedelta(weeks=site.replay_offset_weeks))
+            g = g.dropna(subset=["ts"]).drop_duplicates(["ts"], keep="first")
+            sid = site.id
             g = g.set_index("ts").sort_index()
             full = pd.date_range(g.index[0], g.index[-1], freq="h")
             g = g.reindex(full)
@@ -115,7 +152,7 @@ class Deployment:
                 g[value_cols] = g[value_cols].ffill().infer_objects()
             g["station_id"] = sid
             parts.append(g.rename_axis("ts").reset_index())
-        return pd.concat(parts, ignore_index=True) if parts else df
+        return pd.concat(parts, ignore_index=True) if parts else panel.iloc[0:0]
 
     # ------------------------------------------------------------------ ids
     def to_donor(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -139,8 +176,10 @@ class Deployment:
             "holidays": f"{c.holidays.country}" + (f"-{c.holidays.subdiv}" if c.holidays.subdiv else ""),
             "model_trained_on": c.model_source,
             "is_twin": True,
+            "cities": self.cities,
+            "evaluated_on": f"{c.reports or c.name} pilot sites",
             "note": (
-                "Pilot digital twin: sites and weather are Pune's; demand replays a held-out period of the "
+                f"Pilot digital twin: sites and weather are {c.city}'s; demand replays a held-out period of the "
                 "training data aligned to local time. Not yet validated on Indian charging data."
             ),
         }

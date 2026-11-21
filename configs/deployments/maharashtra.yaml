@@ -1,0 +1,238 @@
+# Maharashtra pilot (digital twin): the Pune pilot sites plus public chargers in Mumbai, Thane, Navi Mumbai,
+# Nashik, Nagpur and Chhatrapati Sambhajinagar.
+#
+# * sites:     real charging locations from OpenStreetMap, named by OSM reverse geocoding (osm field).
+#              Kolhapur and Solapur are not included: OpenStreetMap had no charger mapped there.
+# * demand:    each site replays a paired training site's held-out demand on local wall-clock time.
+#              There are more sites than training sites, so a training site can back several sites; each
+#              reuse replays it from an earlier week (replay_offset_weeks) so no two sites show the same curve.
+# * weather:   each site's own observed weather (Open-Meteo archive); holidays IN-MH; IST.
+# * reports:   the held-out evaluation (Model Arena, Insights) is the Pune pilot sites' (`power-ml twin
+#              --deployment pune`), where every training site backs exactly one site. Live accuracy covers
+#              every Maharashtra site.
+name: maharashtra
+display_name: Maharashtra pilot (digital twin)
+city: Maharashtra
+country: India
+timezone: Asia/Kolkata
+holidays:
+  country: IN
+  subdiv: MH
+currency: INR
+locale: en-IN
+model_source: palo_alto
+donor_timezone: America/Los_Angeles
+weather_cache: data/external/weather_maharashtra.parquet
+reports: pune
+sites:
+- id: PUN_WESTEND_AUNDH
+  name: Westend Mall, Aundh
+  area: Aundh
+  latitude: 18.56233
+  longitude: 73.80694
+  poi: mall
+  osm: node/11217502924
+  donor: PA_BRYANT
+  city: Pune
+- id: PUN_AUNDH_SHINDE_MARG
+  name: Mahadji Shinde Marg, Aundh
+  area: Aundh
+  latitude: 18.56389
+  longitude: 73.80705
+  poi: commercial
+  osm: node/12458871181
+  donor: PA_HIGH
+  city: Pune
+- id: PUN_AUNDH_GAIKWAD_PATH
+  name: Shankarao Gaikwad Path, Aundh
+  area: Aundh
+  latitude: 18.55363
+  longitude: 73.80656
+  poi: commercial
+  osm: node/10250046452
+  donor: PA_HAMILTON
+  city: Pune
+- id: PUN_BALEWADI_HIGH_STREET
+  name: Balewadi High Street, Baner
+  area: Baner
+  latitude: 18.56721
+  longitude: 73.77199
+  poi: commercial
+  osm: node/6116153836
+  donor: PA_WEBSTER
+  city: Pune
+- id: PUN_DECCAN_GYMKHANA
+  name: Gokhale Path, Deccan Gymkhana
+  area: Deccan Gymkhana
+  latitude: 18.52282
+  longitude: 73.84105
+  poi: commercial
+  osm: node/12473454969
+  donor: PA_RINCONADA_LIB
+  city: Pune
+- id: PUN_PAUD_ROAD
+  name: Paud Road, Erandwane
+  area: Erandwane
+  latitude: 18.50956
+  longitude: 73.8147
+  poi: commercial
+  osm: node/10097434142
+  donor: PA_CAMBRIDGE
+  city: Pune
+- id: PUN_KOTHRUD
+  name: Kothrud
+  area: Kothrud
+  latitude: 18.50719
+  longitude: 73.80377
+  poi: commercial
+  osm: node/9411828530
+  donor: PA_SHERMAN
+  city: Pune
+- id: PUN_KARVE_NAGAR
+  name: Gandhibhavan Road, Karve Nagar
+  area: Karve Nagar
+  latitude: 18.4961
+  longitude: 73.80886
+  poi: residential
+  osm: node/763446417
+  donor: PA_TED_THOMPSON
+  city: Pune
+- id: PUN_SAHAKAR_NAGAR
+  name: Sahakar Nagar
+  area: Sahakar Nagar
+  latitude: 18.4845
+  longitude: 73.84968
+  poi: residential
+  osm: node/10097434144
+  donor: PA_MPL
+  city: Pune
+- id: THN_MANPADA
+  name: Ghodbunder Road, Manpada
+  area: Manpada
+  latitude: 19.23296
+  longitude: 72.97606
+  poi: commercial
+  osm: node/9215039103
+  donor: PA_BRYANT
+  city: Thane
+  replay_offset_weeks: 1
+- id: MUM_GOREGAON_EAST
+  name: Goregaon East
+  area: Goregaon East
+  latitude: 19.15979
+  longitude: 72.85829
+  poi: commercial
+  osm: node/10553764693
+  donor: PA_HIGH
+  city: Mumbai
+  replay_offset_weeks: 1
+- id: MUM_COLABA
+  name: A Ward, Colaba
+  area: Colaba
+  latitude: 18.90489
+  longitude: 72.80466
+  poi: commercial
+  osm: node/13629431945
+  donor: PA_HAMILTON
+  city: Mumbai
+  replay_offset_weeks: 1
+- id: MUM_OSHIWARA
+  name: Oshiwara
+  area: Oshiwara
+  latitude: 19.14631
+  longitude: 72.83365
+  poi: commercial
+  osm: node/14158954590
+  donor: PA_WEBSTER
+  city: Mumbai
+  replay_offset_weeks: 1
+- id: MUM_LINK_ROAD
+  name: Link Road, Jeevan Nagar
+  area: Jeevan Nagar
+  latitude: 19.13023
+  longitude: 72.83141
+  poi: commercial
+  osm: node/14197852532
+  donor: PA_RINCONADA_LIB
+  city: Mumbai
+  replay_offset_weeks: 1
+- id: NGP_NORTH
+  name: North Nagpur
+  area: North Nagpur
+  latitude: 21.22498
+  longitude: 79.08196
+  poi: commercial
+  osm: node/12918480635
+  donor: PA_CAMBRIDGE
+  city: Nagpur
+  replay_offset_weeks: 1
+- id: CSN_SHIVAJI_HIGHWAY
+  name: Shivaji Highway, Rampur
+  area: Rampur
+  latitude: 19.86557
+  longitude: 75.42089
+  poi: commercial
+  osm: node/13246292161
+  donor: PA_TED_THOMPSON
+  city: Chhatrapati Sambhajinagar
+  replay_offset_weeks: 1
+- id: NSK_AMBAD
+  name: Vikrikar Bhavan Road, Ambad
+  area: Ambad
+  latitude: 19.95184
+  longitude: 73.7539
+  poi: commercial
+  osm: node/10049044828
+  donor: PA_MPL
+  city: Nashik
+  replay_offset_weeks: 1
+- id: NSK_TRIMBAK_ROAD
+  name: Trimbakeshwar Road, Mahiravni
+  area: Mahiravni
+  latitude: 19.97183
+  longitude: 73.68026
+  poi: commercial
+  osm: node/10050798916
+  donor: PA_BRYANT
+  city: Nashik
+  replay_offset_weeks: 2
+- id: NSK_ASHOK_NAGAR
+  name: Ashok Nagar
+  area: Ashok Nagar
+  latitude: 19.97303
+  longitude: 73.72786
+  poi: commercial
+  osm: way/1476227828
+  donor: PA_HIGH
+  city: Nashik
+  replay_offset_weeks: 2
+- id: NMB_SARSOLE
+  name: Sarsole Village, Nerul
+  area: Nerul
+  latitude: 19.02452
+  longitude: 73.01351
+  poi: commercial
+  osm: node/9252505223
+  donor: PA_HAMILTON
+  city: Navi Mumbai
+  replay_offset_weeks: 2
+- id: NMB_PANVEL
+  name: NH48, Panvel
+  area: Panvel
+  latitude: 19.08749
+  longitude: 73.07963
+  poi: commercial
+  osm: node/10285406628
+  donor: PA_WEBSTER
+  city: Navi Mumbai
+  replay_offset_weeks: 2
+- id: NMB_SANPADA
+  name: Sanpada
+  area: Sanpada
+  latitude: 19.06715
+  longitude: 73.00753
+  poi: commercial
+  osm: node/10827297703
+  donor: PA_RINCONADA_LIB
+  city: Navi Mumbai
+  replay_offset_weeks: 2

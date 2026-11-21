@@ -21,12 +21,19 @@ export default function CommandCenter() {
   const [h, setH] = useState(1);
   const [showOthers, setShowOthers] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [city, setCity] = useState<string | null>(null); // null = the whole deployment
   const [sheet, setSheet] = useState(false);
   const wide = useWide();
 
   const snap = useQuery({ queryKey: ["snapshot", h], queryFn: () => api.snapshot(h), placeholderData: keepPreviousData });
   const horizon = useQuery({ queryKey: ["horizon"], queryFn: api.horizon, placeholderData: keepPreviousData });
   useQuery({ queryKey: ["stations"], queryFn: api.stations }); // display names for reroute text
+  const dep = useQuery({ queryKey: ["deployment"], queryFn: api.deployment, staleTime: Infinity });
+  const cities = dep.data?.cities ?? [];
+  const pickCity = (c: string | null) => {
+    setCity(c);
+    setSelected(null);
+  };
 
   const modeled = useMemo(
     () => snap.data?.stations.filter((s) => s.is_modeled).sort((a, b) => (b.load_ratio_q95 ?? 0) - (a.load_ratio_q95 ?? 0)) ?? [],
@@ -46,7 +53,14 @@ export default function CommandCenter() {
 
   return (
     <div className="absolute inset-0">
-      <StationMap snapshot={shownSnap} selectedId={selected} onSelect={select} onOpen={(id) => router.push(`/stations/${id}`)} padding={padding} />
+      <StationMap
+        snapshot={shownSnap}
+        selectedId={selected}
+        onSelect={select}
+        onOpen={(id) => router.push(`/stations/${id}`)}
+        padding={padding}
+        focusCity={city}
+      />
 
       {/* figures: a centred strip on very wide screens, otherwise at the top of the right column (lg) or scrolling (small) */}
       <KpiRibbon className="rise absolute top-[92px] left-1/2 hidden -translate-x-1/2 [--d:120ms] 2xl:flex" />
@@ -59,6 +73,9 @@ export default function CommandCenter() {
         h={h}
         selectedId={selected}
         onSelect={select}
+        cities={cities}
+        city={city}
+        onCity={pickCity}
         className="rise absolute top-[92px] bottom-[176px] left-5 hidden w-[310px] [--d:160ms] lg:flex"
       />
 
@@ -88,7 +105,7 @@ export default function CommandCenter() {
         aria-hidden={!sheet}
         inert={!sheet}
       >
-        <StationList stations={modeled} h={h} selectedId={selected} onSelect={select} className="max-h-[60vh] shrink-0 !bg-transparent !shadow-none !backdrop-blur-none" />
+        <StationList stations={modeled} h={h} selectedId={selected} onSelect={select} cities={cities} city={city} onCity={pickCity} className="max-h-[60vh] shrink-0 !bg-transparent !shadow-none !backdrop-blur-none" />
         <AlertFeed onSelect={select} className="shrink-0" />
       </div>
     </div>

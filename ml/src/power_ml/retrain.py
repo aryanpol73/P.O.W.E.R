@@ -57,7 +57,7 @@ def _score(y: np.ndarray, q50: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> di
 
 
 def fit_challenger(
-    panel: pd.DataFrame,
+    panel: pd.DataFrame | list[pd.DataFrame],
     stations: pd.DataFrame,
     fcfg: FeatureConfig,
     rcfg: RetrainCfg,
@@ -74,24 +74,31 @@ def fit_challenger(
     seed: int = 42,
     n_jobs: int = -1,
 ) -> ChallengerResult:
-    """``panel`` uses the model's station ids and holds observed hours only (ts <= as_of)."""
+    """``panel`` uses the model's station ids and holds observed hours only (ts <= as_of).
+
+    A list of panels is one panel per id round (a deployment where one training site backs several sites):
+    frames are built per panel and stacked, so the same model id never mixes two sites' histories.
+    """
     t0 = time.perf_counter()
     as_of = pd.Timestamp(as_of)
-    panel = panel.loc[panel["ts"] <= as_of].copy()
+    panels = [x.loc[x["ts"] <= as_of].copy() for x in (panel if isinstance(panel, list) else [panel])]
     shadow_start = as_of - pd.Timedelta(days=rcfg.shadow_days)
     calib_start = shadow_start - pd.Timedelta(days=rcfg.calib_days)
     train_end = calib_start - pd.Timedelta(hours=rcfg.embargo_hours)
     train_start = train_end - pd.Timedelta(days=rcfg.window_days)
     warm = pd.Timedelta(hours=fcfg.warmup_hours)
-    panel = panel.loc[panel["ts"] >= train_start - warm]
-    if panel.empty or panel["ts"].min() > train_start:
+    panels = [x.loc[x["ts"] >= train_start - warm] for x in panels]
+    panels = [x for x in panels if not x.empty]
+    if not panels or min(x["ts"].min() for x in panels) > train_start:
         raise ValueError(f"not enough history before {train_start} for a {rcfg.window_days}-day window")
 
     common = {"tz": tz, "holidays": holidays, "apply_warmup": False, "drop_missing_target": True}
-    tr = build_direct_frame(panel.loc[panel["ts"] <= train_end], stations, fcfg, origin_stride_hours=origin_stride, **common)
+    tr = pd.concat([build_direct_frame(x.loc[x["ts"] <= train_end], stations, fcfg, origin_stride_hours=origin_stride, **common)
+                    for x in panels], ignore_index=True)
     tr = tr.loc[(tr["origin"] >= train_start) & (tr["target_time"] <= train_end)].reset_index(drop=True)
     # Calibration + shadow at every origin; only the lag warm-up of history is needed before them.
-    ev = build_direct_frame(panel.loc[panel["ts"] >= calib_start - warm], stations, fcfg, origin_stride_hours=1, **common)
+    ev = pd.concat([build_direct_frame(x.loc[x["ts"] >= calib_start - warm], stations, fcfg, origin_stride_hours=1, **common)
+                    for x in panels], ignore_index=True)
     calib = ev.loc[(ev["origin"] >= calib_start) & (ev["target_time"] < shadow_start)].reset_index(drop=True)
     shadow = ev.loc[(ev["origin"] >= shadow_start) & (ev["target_time"] <= as_of)].reset_index(drop=True)
     if tr.empty or calib.empty or shadow.empty:

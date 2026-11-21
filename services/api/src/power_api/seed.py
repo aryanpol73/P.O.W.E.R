@@ -115,6 +115,7 @@ def _deployed_stations(dep: Deployment, stations: pd.DataFrame, modeled: set[str
             "poi_category": [x.poi for x in sites],
             "first_seen": first_seen.tz_localize(None),
             "is_modeled": [x.donor in modeled for x in sites],
+            "city": [dep.city_of(x) for x in sites],
         }
     )
 
@@ -152,6 +153,7 @@ def seed(
                 "poi_category": stations["poi_category"],
                 "first_seen": _naive_utc(stations["first_seen"]),
                 "is_modeled": stations["station_id"].isin(modeled),
+                "city": None,
             }
         )
     else:

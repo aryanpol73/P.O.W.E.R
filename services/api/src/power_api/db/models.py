@@ -29,6 +29,7 @@ class Station(Base):
     poi_category: Mapped[str] = mapped_column(String(64), default="unknown")
     first_seen: Mapped[datetime | None] = mapped_column(DateTime)
     is_modeled: Mapped[bool] = mapped_column(Boolean, default=True)
+    city: Mapped[str | None] = mapped_column(String(64), nullable=True)  # deployment city (e.g. Mumbai)
 
     @property
     def transformer_kw(self) -> float:

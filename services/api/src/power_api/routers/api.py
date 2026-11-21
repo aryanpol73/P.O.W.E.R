@@ -150,6 +150,7 @@ async def list_stations(request: Request, modeled: bool = True, s: AsyncSession 
             "rated_kw_total": x.rated_kw_total,
             "transformer_kw": round(x.transformer_kw, 2),
             "poi_category": x.poi_category,
+            "city": x.city,
             "is_modeled": x.is_modeled,
             "risk": _risk(float(worst.get(x.station_id, 0.0)), request) if x.is_modeled else None,
         }
@@ -358,6 +359,7 @@ async def snapshot(request: Request, h: int = Query(1, ge=1, le=24), s: AsyncSes
                 "load_ratio_q95": round(r.ratio or 0, 4),
                 "risk": _risk(r.ratio or 0, request),
                 "is_modeled": True,
+                "city": x.city,
                 "is_degraded": bool(r.degraded),
             }
         )
@@ -375,6 +377,7 @@ async def snapshot(request: Request, h: int = Query(1, ge=1, le=24), s: AsyncSes
                     "load_ratio_q95": None,
                     "risk": None,
                     "is_modeled": False,
+                    "city": x.city,
                 }
             )
     return {

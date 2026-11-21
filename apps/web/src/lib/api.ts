@@ -19,6 +19,10 @@ export interface Deployment {
   model_trained_on: string;
   is_twin: boolean;
   note?: string;
+  /** cities in the deployment with their site counts and centres */
+  cities?: { name: string; sites: number; latitude: number; longitude: number }[];
+  /** whose held-out evaluation the Arena and Insights show (e.g. "pune pilot sites") */
+  evaluated_on?: string;
 }
 
 export interface AgentInfo {
@@ -120,6 +124,7 @@ export interface Station {
   poi_category: string;
   is_modeled: boolean;
   risk: Risk | null;
+  city?: string | null;
   /** pilot = forecast site; pilot_no_history = pilot site with nothing to replay; discovered = OSM charger */
   kind: "pilot" | "pilot_no_history" | "discovered";
   /** discovered chargers only: rough next-hour estimate from the pilot sites' per-port median (display only) */
@@ -138,6 +143,7 @@ export interface SnapshotStation {
   risk: Risk | null;
   is_modeled: boolean;
   is_degraded?: boolean;
+  city?: string | null;
 }
 
 export interface Reroute {

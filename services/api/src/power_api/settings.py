@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
     root: Path | None = Field(default=None, alias="POWER_ROOT")
     # Deployment profile in configs/deployments/ (the live console's city); "none" = the training sites.
-    deployment_name: str = Field(default="pune", alias="POWER_DEPLOYMENT")
+    deployment_name: str = Field(default="maharashtra", alias="POWER_DEPLOYMENT")
     # A8: look up other public chargers on OpenStreetMap at start-up (at most once a day).
     discovery_on_start: bool = Field(default=True, alias="POWER_DISCOVERY")
     push_enabled: bool = Field(default=True, alias="POWER_PUSH")  # Web Push for new grid alerts

@@ -50,9 +50,25 @@ def make_sync_engine(url: str) -> Engine:
     return eng
 
 
+# Columns added after the first release: (table, column, SQL type). create_all() never alters an existing
+# table, so these are added in place on start-up and on seeding (idempotent).
+ADDED_COLUMNS = [("stations", "city", "VARCHAR(64)")]
+
+
+def add_missing_columns(conn) -> None:  # type: ignore[no-untyped-def]
+    from sqlalchemy import inspect
+
+    insp = inspect(conn)
+    for table, col, sqltype in ADDED_COLUMNS:
+        if insp.has_table(table) and col not in {c["name"] for c in insp.get_columns(table)}:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {sqltype}"))
+
+
 def init_schema(engine: Engine) -> None:
     """Create tables; on PostgreSQL with TimescaleDB available, convert time-series tables to hypertables."""
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        add_missing_columns(conn)
     if engine.dialect.name == "postgresql":
         with engine.begin() as conn:
             has_ts = conn.execute(text("SELECT 1 FROM pg_available_extensions WHERE name='timescaledb'")).first()

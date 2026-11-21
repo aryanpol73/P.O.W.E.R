@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowUpRight, Search } from "lucide-react";
+import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -21,16 +21,23 @@ export function StationList({
   selectedId,
   onSelect,
   className,
+  cities = [],
+  city = null,
+  onCity,
 }: {
   stations: SnapshotStation[];
   h: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
   className?: string;
+  cities?: { name: string; sites: number }[];
+  city?: string | null;
+  onCity?: (city: string | null) => void;
 }) {
   const [q, setQ] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  const shown = q ? stations.filter((s) => s.name.toLowerCase().includes(q.toLowerCase())) : stations;
+  const inCity = city ? stations.filter((s) => s.city === city) : stations;
+  const shown = q ? inCity.filter((s) => s.name.toLowerCase().includes(q.toLowerCase())) : inCity;
 
   // "/" focuses the search, like most consoles
   useEffect(() => {
@@ -52,6 +59,24 @@ export function StationList({
           Stations at <span className="text-grad">+{h} h</span>
         </h2>
         <p className="text-xs text-muted">q95 load as a share of the transformer rating</p>
+        {cities.length > 1 && onCity && (
+          <label className="mt-3 flex h-10 items-center gap-2 rounded-xl bg-black/25 px-3 shadow-[inset_0_0_0_1px_rgba(165,180,252,0.1)] transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent)]">
+            <MapPin size={15} className="shrink-0 text-muted" aria-hidden="true" />
+            <span className="sr-only">City</span>
+            <select
+              value={city ?? ""}
+              onChange={(e) => onCity(e.target.value || null)}
+              className="min-w-0 flex-1 cursor-pointer bg-transparent text-[13px] text-text outline-none [&>option]:bg-surface"
+            >
+              <option value="">All cities ({cities.reduce((a, c) => a + c.sites, 0)} sites)</option>
+              {cities.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name} ({c.sites})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="mt-3 flex h-10 items-center gap-2 rounded-xl bg-black/25 px-3 shadow-[inset_0_0_0_1px_rgba(165,180,252,0.1)] transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent)]">
           <Search size={15} className="shrink-0 text-muted" aria-hidden="true" />
           <span className="sr-only">Search stations</span>
@@ -60,7 +85,7 @@ export function StationList({
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${stations.length} sites`}
+            placeholder={`Search ${inCity.length} sites`}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-text outline-none placeholder:text-muted"
           />
           <kbd className="rounded-[5px] px-1.5 font-mono text-[10px] text-muted shadow-[inset_0_0_0_1px_rgba(165,180,252,0.2)]">/</kbd>
@@ -82,6 +107,7 @@ export function StationList({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-bold">{s.name}</span>
+                  {!city && cities.length > 1 && s.city && <span className="block truncate text-[11px] text-muted">{s.city}</span>}
                   <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-white/[0.06]">
                     <span
                       className={clsx("block h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-[var(--ease)]", TONE[risk].bar)}
@@ -102,7 +128,7 @@ export function StationList({
             </li>
           );
         })}
-        {stations.length > 0 && shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No station matches “{q}”.</li>}
+        {inCity.length > 0 && shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No station matches “{q}”.</li>}
         {stations.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No forecast stations in this snapshot.</li>}
       </ul>
     </aside>

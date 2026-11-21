@@ -12,6 +12,9 @@ import yaml
 from fastapi.testclient import TestClient
 
 SITES = {"S_A": ("TW_ALPHA", 18.5623, 73.8069), "S_B": ("TW_BETA", 18.5639, 73.8071), "S_C": ("TW_GAMMA", 18.5536, 73.8066)}
+# a second city whose site reuses S_A's history, replayed one week earlier
+EXTRA = {"id": "TW_DELTA", "name": "Delta", "latitude": 19.0760, "longitude": 72.8777, "donor": "S_A",
+         "city": "Mumbai", "replay_offset_weeks": 1}
 
 
 def _fake_weather(coords: dict[str, tuple[float, float]], start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
@@ -43,7 +46,7 @@ def twin(power_root: Path, tmp_path: Path):  # type: ignore[no-untyped-def]
         "sites": [
             {"id": sid, "name": sid.title(), "latitude": lat, "longitude": lon, "donor": donor}
             for donor, (sid, lat, lon) in SITES.items()
-        ],
+        ] + [EXTRA],
     }
     (power_root / "configs" / "deployments").mkdir(parents=True, exist_ok=True)
     (power_root / "configs" / "deployments" / "twin.yaml").write_text(yaml.safe_dump(cfg))
@@ -66,7 +69,7 @@ def test_deployment_endpoint(twin: TestClient) -> None:
 
 def test_only_deployed_sites_are_exposed(twin: TestClient) -> None:
     ids = {s["station_id"] for s in twin.get("/api/v1/stations", params={"modeled": False}).json()}
-    assert ids == {v[0] for v in SITES.values()}
+    assert ids == {v[0] for v in SITES.values()} | {"TW_DELTA"}
     snap = twin.get("/api/v1/network/snapshot", params={"h": 1}).json()
     assert {s["station_id"] for s in snap["stations"]} <= ids
     for a in twin.get("/api/v1/alerts", params={"status": "all"}).json():
@@ -102,3 +105,31 @@ def test_demand_keeps_its_local_wall_clock(power_root: Path) -> None:
     assert dst.loc[wall.tz_localize("Asia/Kolkata").tz_convert("UTC")] == src.loc[t]
     gaps = dst.index.to_series().diff().dropna()
     assert (gaps == pd.Timedelta(hours=1)).all()
+
+
+def test_one_training_site_can_back_two_cities(twin: TestClient) -> None:
+    d = twin.get("/api/v1/deployment").json()
+    assert {c["name"] for c in d["cities"]} == {"Pune", "Mumbai"}
+    sts = {s["station_id"]: s for s in twin.get("/api/v1/stations").json()}
+    assert sts["TW_DELTA"]["city"] == "Mumbai" and sts["TW_ALPHA"]["city"] == "Pune"
+    a = twin.get("/api/v1/stations/TW_ALPHA/forecast").json()
+    b = twin.get("/api/v1/stations/TW_DELTA/forecast").json()
+    qa = [p["q50"] for p in a["points"]]
+    qb = [p["q50"] for p in b["points"]]
+    assert len(qa) == len(qb) == 24
+    assert qa != qb  # same model id, different replayed history -> different forecasts
+    e = twin.get("/api/v1/stations/TW_DELTA/explain").json()
+    assert e["station_id"] == "TW_DELTA"
+    r = twin.post("/api/v1/scenarios/simulate", json={"temperature_delta_c": 2})
+    assert r.status_code == 200
+    assert {x["station_id"] for x in r.json()["scenario"]} >= {"TW_ALPHA", "TW_DELTA"}
+
+
+def test_rounds_never_repeat_a_donor(power_root: Path) -> None:
+    from power_core.deployment import load_deployment
+
+    dep = load_deployment(power_root, "twin")
+    assert dep is not None
+    for r in dep.rounds:
+        assert len(set(r.values())) == len(r)
+    assert sum(len(r) for r in dep.rounds) == len(dep.cfg.sites)

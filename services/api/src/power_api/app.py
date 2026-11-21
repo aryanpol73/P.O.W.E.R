@@ -16,7 +16,7 @@ from power_api.agents import base as agent_base
 from power_api.agents import discovery as discovery_agent
 from power_api.bus import InProcessBus
 from power_api.db import models as m
-from power_api.db.session import make_async_engine, sessionmaker_for, utcnow
+from power_api.db.session import add_missing_columns, make_async_engine, sessionmaker_for, utcnow
 from power_api.routers import agents, api, push, ws
 from power_api.serving.engine import ServingEngine
 from power_api.settings import Settings, get_settings
@@ -54,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         maker = sessionmaker_for(db)
         async with db.begin() as conn:  # add tables introduced since the database was seeded (idempotent)
             await conn.run_sync(m.Base.metadata.create_all)
+            await conn.run_sync(add_missing_columns)
         async with maker() as s:
             n = (await s.execute(select(func.count()).select_from(m.Station))).scalar_one()
         if n == 0:

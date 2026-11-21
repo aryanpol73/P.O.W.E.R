@@ -22,7 +22,7 @@ const INK: Record<Mode, { STROKE: string; LABEL: string; HALO: string; CONTEXT: 
   day: { STROKE: "#ffffff", LABEL: "#1f2937", HALO: "#ffffff", CONTEXT: "#64748b", SELECT: "#111827" },
   night: { STROKE: "#0b1020", LABEL: "#e5e7eb", HALO: "#0b1020", CONTEXT: "#94a3b8", SELECT: "#ffffff" },
 };
-const CITY: [number, number] = [73.83, 18.53]; // lon, lat used for sunrise and sunset (Pune)
+const DEFAULT_CENTRE: [number, number] = [73.83, 18.53]; // lon, lat (Pune) until stations load
 const HHMM = new Intl.DateTimeFormat(LOCALE, { timeZone: SITE_TZ, hour: "2-digit", minute: "2-digit", hour12: false });
 const hhmm = (d: Date) => HHMM.format(d);
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -170,12 +170,15 @@ export function StationMap({
   onSelect,
   onOpen,
   padding = { top: 60, right: 60, bottom: 60, left: 60 },
+  focusCity = null,
 }: {
   snapshot: Snapshot | undefined;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
   onOpen?: (id: string) => void;
   padding?: MapPadding;
+  /** fly to this city's stations (null = all of them); every station stays on the map */
+  focusCity?: string | null;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
@@ -188,10 +191,14 @@ export function StationMap({
   cb.current = { onSelect, onOpen };
   const pad = useRef(padding);
   pad.current = padding;
-  // day or night in the city at the console clock (the forecast origin), updated as the replay runs
+  // day or night where the map is looking (the focused city, else all stations), at the console clock
   const clock = snapshot ? new Date(snapshot.forecast_origin) : new Date();
-  const mode: Mode = isNight(clock, CITY[1], CITY[0]) ? "night" : "day";
-  const sun = sunTimes(clock, CITY[1], CITY[0]);
+  const inView = snapshot?.stations.filter((x) => !focusCity || x.city === focusCity) ?? [];
+  const centre: [number, number] = inView.length
+    ? [inView.reduce((a, x) => a + x.lon, 0) / inView.length, inView.reduce((a, x) => a + x.lat, 0) / inView.length]
+    : DEFAULT_CENTRE;
+  const mode: Mode = isNight(clock, centre[1], centre[0]) ? "night" : "day";
+  const sun = sunTimes(clock, centre[1], centre[0]);
   const modeRef = useRef(mode);
 
   useEffect(() => {
@@ -279,6 +286,21 @@ export function StationMap({
       fitted.current = true;
     }
   }, [ready, snapshot]);
+
+  // fly to the chosen city (or back out to every station)
+  const lastFocus = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m || !snapshot || lastFocus.current === focusCity) return;
+    const pts = snapshot.stations.filter((x) => !focusCity || x.city === focusCity);
+    if (!pts.length) return;
+    const first = lastFocus.current === undefined;
+    lastFocus.current = focusCity;
+    if (first && !focusCity) return; // the initial framing above already shows everything
+    const b = new maplibregl.LngLatBounds();
+    pts.forEach((x) => b.extend([x.lon, x.lat]));
+    m.fitBounds(b, { padding: pad.current, maxZoom: 13.5, duration: reducedMotion() ? 0 : 1100 });
+  }, [ready, snapshot, focusCity]);
 
   // selection: ring, card, and a smooth glide so the station sits in the clear part of the map
   useEffect(() => {

@@ -38,6 +38,7 @@ def _twin_panel(root: Path, dep: Deployment) -> pd.DataFrame:
     panel["ts"] = pd.to_datetime(panel["ts"], utc=True)
     value_cols = [c for c in panel.columns if c not in ("station_id", "ts")]
     tw = dep.retime_panel(panel, value_cols)  # site ids, twin timeline
+    tw = tw.loc[tw["station_id"].isin(dep.rounds[0])]  # one site per training site: the models key on donor ids
     cache = root / dep.cfg.weather_cache
     if not cache.exists():
         raise FileNotFoundError(f"{cache} missing: run `power-api seed` once with POWER_DEPLOYMENT={dep.cfg.name}")

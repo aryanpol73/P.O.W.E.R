@@ -42,42 +42,59 @@ def _int(v: str | None) -> int | None:
         return None
 
 
+async def _fetch(client: httpx.AsyncClient, bbox: tuple[float, float, float, float], urls: tuple[str, ...]) -> list[dict]:
+    errors: list[str] = []
+    for url in urls:  # public Overpass instances are often busy (429/502/504): try the next mirror
+        try:
+            resp = await client.post(url, data={"data": _query(bbox)})
+            resp.raise_for_status()
+            return resp.json().get("elements", [])
+        except httpx.HTTPStatusError as exc:
+            errors.append(f"{httpx.URL(url).host}: HTTP {exc.response.status_code}")
+        except (httpx.HTTPError, ValueError) as exc:
+            errors.append(f"{httpx.URL(url).host}: {type(exc).__name__}")
+    raise RuntimeError("Overpass unavailable (" + "; ".join(errors) + "); public instances are often busy, retry later")
+
+
 async def run(
     session: AsyncSession, client: httpx.AsyncClient | None = None, urls: tuple[str, ...] = URLS
 ) -> dict[str, Any]:
+    """One Overpass query per city around that city's deployed sites (a state-wide box would be huge)."""
     known = list((await session.execute(select(m.Station))).scalars())
     sites = [k for k in known if k.source != "osm"]
     if not sites:
         return {"added": 0, "updated": 0, "found": 0}
-    lats = [k.latitude for k in sites]
-    lons = [k.longitude for k in sites]
-    bbox = (min(lats) - PAD_DEG, min(lons) - PAD_DEG, max(lats) + PAD_DEG, max(lons) + PAD_DEG)
+    groups: dict[str | None, list[m.Station]] = {}
+    for k in sites:
+        groups.setdefault(k.city, []).append(k)
 
     own = client is None
     client = client or httpx.AsyncClient(timeout=90.0, headers={"User-Agent": "power-ev-console/0.1 (student project)"})
+    found: list[tuple[str | None, dict]] = []
+    boxes = {}
+    failed: dict[str, str] = {}
     try:
-        errors: list[str] = []
-        for url in urls:  # public Overpass instances are often busy (429/502/504): try the next mirror
-            try:
-                resp = await client.post(url, data={"data": _query(bbox)})
-                resp.raise_for_status()
-                elements = resp.json().get("elements", [])
-                break
-            except httpx.HTTPStatusError as exc:
-                errors.append(f"{httpx.URL(url).host}: HTTP {exc.response.status_code}")
-            except (httpx.HTTPError, ValueError) as exc:
-                errors.append(f"{httpx.URL(url).host}: {type(exc).__name__}")
-        else:
-            raise RuntimeError("Overpass unavailable (" + "; ".join(errors) + "); public instances are often busy, retry later")
+        for city, g in groups.items():
+            la = [k.latitude for k in g]
+            lo = [k.longitude for k in g]
+            bbox = (min(la) - PAD_DEG, min(lo) - PAD_DEG, max(la) + PAD_DEG, max(lo) + PAD_DEG)
+            boxes[city or "all"] = [round(x, 4) for x in bbox]
+            try:  # one busy Overpass call should not lose the other cities
+                found += [(city, el) for el in await _fetch(client, bbox, urls)]
+            except RuntimeError as exc:
+                failed[city or "all"] = str(exc)
+        if failed and len(failed) == len(groups):
+            raise RuntimeError(next(iter(failed.values())))
     finally:
         if own:
             await client.aclose()
 
-    site_lat = np.array(lats)
-    site_lon = np.array(lons)
+    site_lat = np.array([k.latitude for k in sites])
+    site_lon = np.array([k.longitude for k in sites])
     by_id = {k.station_id: k for k in known}
     added = updated = 0
-    for el in elements:
+    seen: set[str] = set()
+    for city, el in found:
         lat = el.get("lat", el.get("center", {}).get("lat"))
         lon = el.get("lon", el.get("center", {}).get("lon"))
         if lat is None or lon is None:
@@ -86,16 +103,23 @@ async def run(
             continue  # already a deployed site
         tags = el.get("tags", {})
         sid = f"OSM_{el['type'][0].upper()}{el['id']}"
+        if sid in seen:
+            continue  # overlapping city boxes
+        seen.add(sid)
         ports = _int(tags.get("capacity")) or 0
         row = by_id.get(sid)
         if row is None:
             session.add(m.Station(
                 station_id=sid, name=_name(tags), source="osm", latitude=float(lat), longitude=float(lon),
                 total_ports=ports, rated_kw_total=0.0, diversity_factor=1.0,
-                poi_category=tags.get("access", "public"), first_seen=utcnow(), is_modeled=False,
+                poi_category=tags.get("access", "public"), first_seen=utcnow(), is_modeled=False, city=city,
             ))
             added += 1
         else:
-            row.name, row.latitude, row.longitude, row.total_ports = _name(tags), float(lat), float(lon), ports
+            row.name, row.latitude, row.longitude, row.total_ports, row.city = _name(tags), float(lat), float(lon), ports, city
             updated += 1
-    return {"found": len(elements), "added": added, "updated": updated, "bbox": [round(x, 4) for x in bbox]}
+    total = len({f"{el.get('type')}{el.get('id')}" for _, el in found})
+    out = {"found": total, "added": added, "updated": updated, "cities": sorted(boxes)}
+    if failed:
+        out["failed_cities"] = sorted(failed)  # retried on the next run
+    return out

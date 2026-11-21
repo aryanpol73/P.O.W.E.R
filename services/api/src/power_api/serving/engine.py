@@ -46,6 +46,7 @@ class ServingEngine:
         deployment: Deployment | None = None,
     ) -> None:
         self.root, self.source, self.champion, self.deployment = root, source, champion, deployment
+        _limit_torch_threads()
         self.models, self.ensemble, self.manifest = load_artifacts(root, version or None)
         self.version = self.manifest["version"]
         self.dcfg, self.fcfg, self.tcfg = data_config(root), feature_config(root), threshold_config(root)
@@ -87,18 +88,38 @@ class ServingEngine:
     def reports_dir(self) -> Path:
         """Results for the city on screen: reports/<deployment>/ (from `power-ml twin`), else the training results."""
         if self.deployment is not None:
-            d = self.root / "reports" / self.deployment.cfg.name
+            d = self.root / "reports" / (self.deployment.cfg.reports or self.deployment.cfg.name)
             if d.is_dir():
                 return d
         return self.root / "reports"
 
     # ------------------------------------------------------------------ deployment ids
-    def _to_model(self, panel: pd.DataFrame) -> pd.DataFrame:
-        """Deployed site ids -> the training (donor) ids the models know."""
-        return self.deployment.to_donor(panel) if self.deployment else panel
+    def _rounds(self, panel: pd.DataFrame) -> list[tuple[pd.DataFrame, dict[str, str]]]:
+        """Split a site panel into model-id rounds: (panel with donor ids, donor -> site map).
 
-    def _to_site(self, s: pd.Series) -> pd.Series:
-        return self.deployment.to_site(s) if self.deployment else s.astype(str)
+        The models know training (donor) ids, and one donor can back several deployed sites, so each round
+        holds at most one site per donor. Without a deployment there is a single identity round.
+        """
+        if self.deployment is None:
+            return [(panel, {})]
+        out = []
+        ids = set(panel["station_id"].astype(str).unique())
+        for r in self.deployment.rounds:
+            mine = {sid: d for sid, d in r.items() if sid in ids}
+            if not mine:
+                continue
+            sub = panel.loc[panel["station_id"].astype(str).isin(mine)].copy()
+            sub["station_id"] = sub["station_id"].astype(str).map(mine)
+            out.append((sub, {d: sid for sid, d in mine.items()}))
+        return out
+
+    def _to_model(self, panel: pd.DataFrame) -> list[pd.DataFrame]:
+        """Deployed site ids -> donor-id panels the models know (one per round)."""
+        return [sub for sub, _ in self._rounds(panel)]
+
+    @staticmethod
+    def _back(s: pd.Series, back: dict[str, str]) -> pd.Series:
+        return s.astype(str).map(back).fillna(s.astype(str)) if back else s.astype(str)
 
     def _site_id(self, sid: object) -> str:
         return self.deployment.donor_to_site.get(str(sid), str(sid)) if self.deployment else str(sid)
@@ -172,16 +193,11 @@ class ServingEngine:
         ens = self.ensemble if (not only or self.ensemble.name in only) else None
         return predict_all(models, ens, frame)
 
-    def forecast(
-        self, panel: pd.DataFrame, origin: pd.Timestamp, *, explain: bool = True, models: tuple[str, ...] | None = None
-    ) -> Forecast:
-        """``panel``: station_id, ts (UTC), demand columns up to ``origin``, NaN after; weather through origin+24h."""
-        t0 = time.perf_counter()
-        panel = self._to_model(panel)
-        frame = self._frame(panel, origin)
-        preds, quants = self._predict(frame, panel, only=models)
+    def _rows(self, frame: pd.DataFrame, preds: dict, quants: dict, models: tuple[str, ...] | None,
+              back: dict[str, str]) -> pd.DataFrame:
         h = frame["h"].to_numpy()
         upper = frame["rated_kw_total"].to_numpy(float)
+        site = self._back(frame["station_id"], back)
         rows = []
         for name, p in preds.items():
             if models and name not in models:
@@ -190,30 +206,38 @@ class ServingEngine:
                 lo, hi = self.calibrators[f"{QUANTILE}_cqr"].predict(quants[0.05], quants[0.95], h, lower=0.0, upper=upper)
             else:
                 lo, hi = self.calibrators[name].predict(p, h, lower=0.0, upper=upper)
-            rows.append(
-                pd.DataFrame(
-                    {
-                        "station_id": self._to_site(frame["station_id"]),
-                        "model": name,
-                        "h": h,
-                        "target_time": frame["target_time"],
-                        "y_mean": p,
-                        "q05": lo,
-                        "q50": p,
-                        "q95": hi,
-                    }
-                )
-            )
-        out = pd.concat(rows, ignore_index=True)
-        expl = self.explain(frame) if explain else pd.DataFrame()
+            rows.append(pd.DataFrame({
+                "station_id": site.to_numpy(), "model": name, "h": h, "target_time": frame["target_time"].to_numpy(),
+                "y_mean": p, "q05": lo, "q50": p, "q95": hi,
+            }))
+        return pd.concat(rows, ignore_index=True)
+
+    def forecast(
+        self, panel: pd.DataFrame, origin: pd.Timestamp, *, explain: bool = True, models: tuple[str, ...] | None = None
+    ) -> Forecast:
+        """``panel``: station_id, ts (UTC), demand columns up to ``origin``, NaN after; weather through origin+24h."""
+        t0 = time.perf_counter()
+        parts, expls = [], []
+        for sub, back in self._rounds(panel):
+            frame = self._frame(sub, origin)
+            preds, quants = self._predict(frame, sub, only=models)
+            parts.append(self._rows(frame, preds, quants, models, back))
+            if explain:
+                e = self.explain(frame)
+                if not e.empty:
+                    e["station_id"] = self._back(e["station_id"], back).to_numpy()
+                    expls.append(e)
+        out = pd.concat(parts, ignore_index=True)
+        expl = pd.concat(expls, ignore_index=True) if expls else pd.DataFrame()
         hist = panel.loc[panel["ts"] <= origin]
         degraded = {
-            self._site_id(s): bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False
+            str(s): bool(g["is_imputed"].tail(6).all()) if "is_imputed" in g else False
             for s, g in hist.groupby("station_id")
         }
         return Forecast(origin, out, expl, (time.perf_counter() - t0) * 1000, degraded)
 
     def explain(self, frame: pd.DataFrame, top_k: int = 8) -> pd.DataFrame:
+        """SHAP for the champion; station ids are the frame's own (the caller maps them to sites)."""
         model = self.models.get(self.champion)
         if model is None or not hasattr(model, "models_"):
             return pd.DataFrame()
@@ -229,14 +253,8 @@ class ServingEngine:
             items.append(
                 {"feature": "__other__", "display": "other features", "value": None, "shap": round(float(c.sum() - top.sum()), 4)}
             )
-            recs.append(
-                {
-                    "station_id": self._site_id(row["station_id"]),
-                    "h": int(row["h"]),
-                    "base_value": round(float(base[i]), 4),
-                    "contributions": items,
-                }
-            )
+            recs.append({"station_id": str(row["station_id"]), "h": int(row["h"]), "base_value": round(float(base[i]), 4),
+                         "contributions": items})
         return pd.DataFrame(recs)
 
     def scenario(
@@ -251,30 +269,31 @@ class ServingEngine:
     ) -> dict[str, Any]:
         """What-if: shock the *future* covariates only; history and live state are untouched."""
         base = self.forecast(panel, origin, explain=False, models=(self.champion,)).rows
-        shocked = self._to_model(panel)
-        fut = shocked["ts"] > origin
-        shocked.loc[fut, "temperature_2m_c"] = shocked.loc[fut, "temperature_2m_c"] + temperature_delta_c
+        shocked_all = panel.copy()
+        fut = shocked_all["ts"] > origin
+        shocked_all.loc[fut, "temperature_2m_c"] = shocked_all.loc[fut, "temperature_2m_c"] + temperature_delta_c
         if precipitation_mm is not None:
-            shocked.loc[fut, "precipitation_mm"] = precipitation_mm
-        frame = self._frame(shocked, origin, force_holiday=force_holiday)
-        preds, quants = self._predict(frame, shocked, only=(self.champion,))
-        h = frame["h"].to_numpy()
-        lo, hi = self.calibrators[f"{QUANTILE}_cqr"].predict(
-            quants[0.05], quants[0.95], h, lower=0.0, upper=frame["rated_kw_total"].to_numpy(float)
-        )
-        scen = pd.DataFrame(
-            {
-                "station_id": self._to_site(frame["station_id"]),
+            shocked_all.loc[fut, "precipitation_mm"] = precipitation_mm
+        scens = []
+        for sub, back in self._rounds(shocked_all):
+            frame = self._frame(sub, origin, force_holiday=force_holiday)
+            preds, quants = self._predict(frame, sub, only=(self.champion,))
+            h = frame["h"].to_numpy()
+            lo, hi = self.calibrators[f"{QUANTILE}_cqr"].predict(
+                quants[0.05], quants[0.95], h, lower=0.0, upper=frame["rated_kw_total"].to_numpy(float)
+            )
+            scens.append(pd.DataFrame({
+                "station_id": self._back(frame["station_id"], back).to_numpy(),
                 "h": h,
-                "target_time": frame["target_time"],
+                "target_time": frame["target_time"].to_numpy(),
                 "q05": lo * demand_multiplier,
                 "q50": preds[self.champion] * demand_multiplier,
                 "q95": hi * demand_multiplier,
-            }
-        )
+            }))
+        scen = pd.concat(scens, ignore_index=True)
         flags = []
         for col, lo_hi in self.ranges.items():
-            vals = shocked.loc[fut, col]
+            vals = shocked_all.loc[fut, col]
             if len(vals) and (vals.max() > lo_hi[1] or vals.min() < lo_hi[0]):
                 flags.append(
                     {
@@ -292,6 +311,17 @@ class ServingEngine:
         if force_holiday:
             assumptions.append("all forecast hours treated as a public holiday")
         return {"baseline": base, "scenario": scen, "ood_flags": flags, "assumptions": assumptions}
+
+def _limit_torch_threads() -> None:
+    """Serving runs small batches: PyTorch's default of one thread per core oversubscribes the CPU (in Docker a
+    single LSTM call took 3.3 s with 14 threads and 6 ms with 2). POWER_TORCH_THREADS overrides the default of 2."""
+    import os
+
+    try:
+        import torch
+    except ImportError:  # image built without PyTorch: the LSTM is not served
+        return
+    torch.set_num_threads(max(1, int(os.environ.get("POWER_TORCH_THREADS", "2"))))
 
 
 def _num(v: Any) -> float | str | None:
