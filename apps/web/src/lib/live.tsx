@@ -6,7 +6,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { WS_URL } from "./api";
+import { wsUrl } from "./api";
 
 export type LiveStatus = "connecting" | "live" | "offline";
 
@@ -49,7 +49,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
 
     const connect = () => {
       setStatus("connecting");
-      ws = new WebSocket(WS_URL);
+      ws = new WebSocket(wsUrl());
       ws.onopen = () => {
         retry.current = 0;
         setStatus("live");

@@ -1,91 +1,55 @@
-# Deploying P.O.W.E.R. for free (Vercel + Hugging Face Spaces)
+# Putting P.O.W.E.R. online for free (your PC + Cloudflare quick tunnel)
 
-| Piece | Host | Cost |
-|---|---|---|
-| Web console (Next.js PWA) | Vercel Hobby | free |
-| API (simulator, agents, 11 models) + copilot | Hugging Face Space (Gradio SDK), CPU basic (2 vCPU, 16 GB RAM) | free |
-| Database | SQLite inside the Space | free |
-| Models and seed data | GitHub release asset | free |
+Hosted free tiers that can run the backend (Hugging Face Spaces, etc.) now need a paid plan, so the
+whole stack runs on this PC and a free Cloudflare quick tunnel gives it a public `https://` address.
+No account, card or domain is needed.
 
-No card is needed anywhere.
+| Piece | Where |
+|---|---|
+| Console, API (simulator, agents, 11 models), copilot, TimescaleDB | Docker on this PC |
+| `edge` (Caddy) | puts console and API behind one port, 8090 |
+| `tunnel` (cloudflared) | publishes port 8090 as `https://<random>.trycloudflare.com` |
 
-**Trade-offs of the free tier**
-- A Space with no visitors for 48 hours goes to sleep. The next visit wakes it: about 2 to 4 minutes to
-  download the bundle and seed, after which the live clock starts again at the current hour.
-- The Space's disk is not persistent, so live history (alerts, scored forecasts) starts over after a
-  restart or sleep. The 30 days of history the models need are reseeded every time.
-- The Space is public: anyone can read the API, as with the console. Admin actions need `ADMIN_TOKEN`.
+## Start
 
-## 1. Runtime bundle (once per model version)
-
-Models and seed data are git-ignored, so the Space downloads them from a release:
+`.env` must contain the line `POWER_PUBLIC_API_URL=` (empty), so the console calls the API on its own
+origin. Then:
 
 ```powershell
-uv run python scripts/make_bundle.py
+docker compose --profile public up -d --build
 ```
 
-This writes `dist/power-runtime.tar.gz` (about 110 MB: models, seed data and `configs/`; never includes `data/vapid.json` or `.env`).
-On GitHub: **Releases → Draft a new release**, tag `runtime-2026.11.0`, attach the file, publish.
-Copy the asset link:
-`https://github.com/aryanpol73/P.O.W.E.R/releases/download/runtime-2026.11.0/power-runtime.tar.gz`
-
-## 2. Tokens and keys (on your machine)
+Print the public address:
 
 ```powershell
-uv run power-api vapid-keys
+docker compose logs tunnel | Select-String trycloudflare.com | Select-Object -Last 1
 ```
 
-Also make two random tokens for `ADMIN_TOKEN` and `POWER_COPILOT_TOKEN`, for example:
+Locally, open http://localhost:8090 (in this mode the console on 3011 expects the router in front of it).
+
+## Good to know
+
+- The site is up only while the PC is on and Docker Desktop is running. All containers restart on their
+  own when Docker starts.
+- The address changes every time the `tunnel` container restarts (reboot, Docker restart). Print it again
+  with the command above. A fixed address needs a Cloudflare account plus your own domain (named tunnel).
+- The site is public: anyone with the link can view it. Admin actions still need `ADMIN_TOKEN`, which
+  stays on the server.
+- After an outage the live clock catches up if it was down for 48 hours or less, otherwise it restarts at
+  the current hour.
+
+## Stop sharing
 
 ```powershell
-uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
+docker compose stop tunnel edge
 ```
 
-## 3. Hugging Face Space (API + copilot)
+## Back to local-only URLs
 
-1. huggingface.co → **New Space**. Name it e.g. `power-api`, SDK **Gradio** (blank template; Docker Spaces need a paid plan), hardware
-   **CPU basic (free)**, visibility **Public**.
-2. In the Space's **Files** tab, upload the three files from `deploy/hf-space/` (`app.py`, `requirements.txt`,
-   `README.md`), replacing the template's. The Space installs the packages straight from GitHub `main`;
-   `app.py` itself serves the API on port 7860 (Gradio is installed but unused).
-3. **Settings → Variables and secrets**:
+Set `POWER_PUBLIC_API_URL=http://localhost:8011` in `.env` (or delete the line) and run
+`docker compose up -d --build web`; the console is then at http://localhost:3011 again.
 
-   | Kind | Name | Value |
-   |---|---|---|
-   | Variable | `POWER_BUNDLE_URL` | the release link from step 1 |
-   | Variable | `CORS_ORIGINS` | your Vercel URL (step 4), e.g. `https://power-console.vercel.app` |
-   | Variable | `VAPID_SUBJECT` | `mailto:` plus your email |
-   | Secret | `ADMIN_TOKEN` | token from step 2 |
-   | Secret | `POWER_COPILOT_TOKEN` | the other token from step 2 |
-   | Secret | `GROQ_API_KEY` | your Groq key (leave out to turn the copilot off) |
-   | Secret | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | from step 2 |
+## Hosted option (paid)
 
-4. The Space builds (about 10 minutes the first time) and starts. Its URL is
-   `https://<your-username>-power-api.hf.space`; `/api/v1/health` returns `"status": "ok"` when ready.
-
-## 4. Vercel (console)
-
-1. vercel.com → **Add New → Project** → import the GitHub repo. **Root Directory: `apps/web`**.
-2. Environment variables (the Space URL from step 3 for the first three):
-
-   | Name | Value |
-   |---|---|
-   | `NEXT_PUBLIC_API_URL` | `https://<your-username>-power-api.hf.space` |
-   | `POWER_API_URL` | same |
-   | `POWER_MCP_URL` | same (the API passes `/copilot` through to the copilot) |
-   | `ADMIN_TOKEN` | same token as the Space |
-   | `POWER_COPILOT_TOKEN` | same token as the Space |
-
-3. **Deploy**, then make sure the Space's `CORS_ORIGINS` is the exact Vercel URL (no trailing slash).
-
-`NEXT_PUBLIC_*` values are baked into the browser bundle: after changing one, redeploy on Vercel.
-
-## Updating
-
-- Web: push to `main`; Vercel redeploys.
-- Backend: push to `main`, then Space **Settings → Factory rebuild** (the Space installs from GitHub when it builds).
-- New models: build and publish a new bundle, update `POWER_BUNDLE_URL`, restart the Space.
-
-## Local stack
-
-`docker compose up -d --build` still runs everything locally with PostgreSQL (README).
+`deploy/hf-space/` holds a tested Hugging Face Space setup (Gradio SDK, needs HF PRO); see its README.
+It downloads models from a release bundle made by `scripts/make_bundle.py`.

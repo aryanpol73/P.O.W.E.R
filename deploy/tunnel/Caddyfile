@@ -1,0 +1,11 @@
+# One origin for the public tunnel: API paths go to the API, everything else (incl. /api/admin and
+# /api/copilot, which are the console's own server routes) to the web console.
+:8090 {
+	@api path /api/v1/* /ws/* /figures/* /docs /docs/* /openapi.json /health
+	handle @api {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

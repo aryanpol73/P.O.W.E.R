@@ -4,7 +4,9 @@
 import { registerStationNames } from "./format";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-export const WS_URL = API_URL.replace(/^http/, "ws") + "/ws/stream";
+// An empty NEXT_PUBLIC_API_URL means "same origin" (the public tunnel routes /api/v1 and /ws to the API).
+export const wsUrl = () =>
+  (API_URL || (typeof window === "undefined" ? "" : window.location.origin)).replace(/^http/, "ws") + "/ws/stream";
 
 export type Risk = "NORMAL" | "WARNING" | "CRITICAL";
 

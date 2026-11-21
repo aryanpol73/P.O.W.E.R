@@ -73,7 +73,7 @@ services:
       context: apps/web
       args:
         # Baked into the browser bundle: the API as the *browser* reaches it.
-        NEXT_PUBLIC_API_URL: http://localhost:${POWER_API_PORT:-8011}
+        NEXT_PUBLIC_API_URL: ${POWER_PUBLIC_API_URL-http://localhost:${POWER_API_PORT:-8011}}
     environment:
       POWER_API_URL: http://api:8000         # server-side admin proxy, inside the compose network
       POWER_MCP_URL: http://mcp:8765         # server-side copilot proxy
@@ -101,6 +101,22 @@ services:
     depends_on:
       api: {condition: service_healthy}
     ports: ["127.0.0.1:${POWER_MCP_PORT:-8765}:8765"]
+    restart: unless-stopped
+
+  # Public access from this PC (docs/DEPLOY.md): `docker compose --profile public up -d`.
+  # Caddy puts web and API behind one port; cloudflared gives it a free https://*.trycloudflare.com URL.
+  edge:
+    image: caddy:2.10-alpine
+    profiles: [public]
+    volumes: ["./deploy/tunnel/Caddyfile:/etc/caddy/Caddyfile:ro"]
+    depends_on: [web, api]
+    ports: ["127.0.0.1:${POWER_EDGE_PORT:-8090}:8090"]
+    restart: unless-stopped
+  tunnel:
+    image: cloudflare/cloudflared:2025.11.1
+    profiles: [public]
+    command: tunnel --no-autoupdate --url http://edge:8090
+    depends_on: [edge]
     restart: unless-stopped
 
 volumes:
