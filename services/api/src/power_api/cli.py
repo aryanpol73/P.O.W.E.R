@@ -45,8 +45,45 @@ def seed(
                 if conn.execute(select(func.count()).select_from(m.Station)).scalar_one() > 0:
                     typer.echo("database already seeded; skipping")
                     return
-    typer.echo(f"seeding {s.db_url}")
+    typer.echo(f"seeding {_masked(s.db_url)}")
     typer.echo(json.dumps(run_seed(make_sync_engine(s.db_url), s.repo_root, s.source, s.deployment), indent=2))
+
+
+def _masked(url: str) -> str:
+    """The database URL without its password, safe for logs."""
+    from sqlalchemy.engine import make_url
+
+    return make_url(url).render_as_string(hide_password=True)
+
+
+@app.command("fetch-bundle")
+def fetch_bundle() -> None:
+    """Download the runtime bundle (models, seed data, reports) from POWER_BUNDLE_URL if it is missing."""
+    from power_api import bundle
+
+    s = get_settings()
+    if not s.bundle_url:
+        typer.echo("POWER_BUNDLE_URL not set; using the files on disk")
+        return
+    if not bundle.needed(s.repo_root):
+        typer.echo("runtime bundle already present")
+        return
+    typer.echo("downloading the runtime bundle...")
+    typer.echo(f"{bundle.fetch(s.bundle_url, s.repo_root)} files unpacked")
+
+
+@app.command("vapid-keys")
+def vapid_keys() -> None:
+    """Print a new Web Push key pair to paste into the host's env vars (nothing is written to disk)."""
+    import py_vapid
+    from cryptography.hazmat.primitives import serialization
+
+    v = py_vapid.Vapid02()
+    v.generate_keys()
+    pub = v.public_key.public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    priv = v.private_key.private_numbers().private_value.to_bytes(32, "big")
+    typer.echo(f"VAPID_PUBLIC_KEY={py_vapid.b64urlencode(pub)}")
+    typer.echo(f"VAPID_PRIVATE_KEY={py_vapid.b64urlencode(priv)}")
 
 
 @app.command()

@@ -26,6 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY packages packages
 COPY ml ml
 COPY services/api services/api
+COPY configs configs
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package power-api --extra postgres --inexact
 
@@ -36,4 +37,6 @@ ENV POWER_ROOT=/app
 EXPOSE 8000
 # Seeds the database on first start (data/ must be mounted), then serves with one worker: the embedded
 # simulator is the single writer.
-CMD ["sh", "-c", "power-api seed --if-empty --wait 120 && exec power-api serve --host 0.0.0.0 --port 8000"]
+# On a host with an empty disk, POWER_BUNDLE_URL fetches the models and seed data first. PORT is set by
+# hosts such as Render (default 8000).
+CMD ["sh", "-c", "power-api fetch-bundle && power-api seed --if-empty --wait 120 && exec power-api serve --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     # SQLite by default (zero-config local dev); PostgreSQL in production, e.g.
     # postgresql+asyncpg://power:power@db:5432/power  (pip extra: power-api[postgres])
     database_url: str = Field(default="", alias="DATABASE_URL")
+    # hosted runtime bundle (models, seed data, reports); see power_api/bundle.py
+    bundle_url: str = Field(default="", alias="POWER_BUNDLE_URL")
     source: str = Field(default="palo_alto", alias="POWER_SOURCE")
     model_version: str = Field(default="", alias="MODEL_VERSION")  # empty = configs/models.yaml version
     champion: str = Field(default="M4_lightgbm_quantile", alias="POWER_CHAMPION")
@@ -34,6 +36,8 @@ class Settings(BaseSettings):
     # A8: look up other public chargers on OpenStreetMap at start-up (at most once a day).
     discovery_on_start: bool = Field(default=True, alias="POWER_DISCOVERY")
     push_enabled: bool = Field(default=True, alias="POWER_PUSH")  # Web Push for new grid alerts
+    # single-port hosts: serve the copilot through the API (routers/copilot_proxy.py); empty = off
+    copilot_upstream: str = Field(default="", alias="POWER_COPILOT_UPSTREAM")
 
     @property
     def deployment(self) -> Deployment | None:
@@ -46,7 +50,11 @@ class Settings(BaseSettings):
     @property
     def db_url(self) -> str:
         if self.database_url:
-            return self.database_url
+            url = self.database_url  # hosts (Render, Heroku) hand out postgres:// URLs; use the async driver
+            for prefix in ("postgres://", "postgresql://"):
+                if url.startswith(prefix):
+                    return "postgresql+asyncpg://" + url[len(prefix):]
+            return url
         path = self.repo_root / "data" / "power.db"
         path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite+aiosqlite:///{path.as_posix()}"

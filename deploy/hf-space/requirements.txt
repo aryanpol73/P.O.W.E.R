@@ -1,0 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+power-core @ git+https://github.com/aryanpol73/P.O.W.E.R.git#subdirectory=packages/power_core
+power-ml @ git+https://github.com/aryanpol73/P.O.W.E.R.git#subdirectory=ml
+power-api @ git+https://github.com/aryanpol73/P.O.W.E.R.git#subdirectory=services/api
+power-mcp @ git+https://github.com/aryanpol73/P.O.W.E.R.git#subdirectory=services/mcp

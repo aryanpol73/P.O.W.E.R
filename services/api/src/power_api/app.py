@@ -101,6 +101,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agents.router, prefix="/api/v1")
     app.include_router(push.router, prefix="/api/v1")
     app.include_router(ws.router)
+    if settings.copilot_upstream:
+        from power_api.routers import copilot_proxy
+
+        app.include_router(copilot_proxy.router)
     dep = settings.deployment  # the deployment's own analysis figures when `power-ml twin` has produced them
     pune_figs = settings.repo_root / "reports" / dep.cfg.name / "figures" if dep else None
     figures = pune_figs if pune_figs and pune_figs.is_dir() else settings.repo_root / "reports" / "figures"
