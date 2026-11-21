@@ -185,7 +185,7 @@ export function CopilotPanel() {
                   className={clsx(
                     "max-w-[90%] rounded-xl px-3 py-2",
                     t.role === "user"
-                      ? "rounded-br-sm bg-gradient-to-b from-[var(--accent-hi)] to-accent text-accent-fg shadow-[0_6px_16px_-8px_var(--accent)]"
+                      ? "rounded-br-sm bg-gradient-to-br from-[var(--grad-a)] to-[var(--grad-b)] text-white shadow-[0_6px_16px_-8px_rgba(124,58,237,0.7)]"
                       : "rounded-bl-sm border border-divider bg-surface-2",
                   )}
                 >

@@ -22,7 +22,7 @@ async function registration(): Promise<ServiceWorkerRegistration | null> {
 }
 
 /** Browser notifications for new grid alerts (Web Push through the service worker). */
-export function PushToggle({ level = "CRITICAL", className }: { level?: "CRITICAL" | "WARNING"; className?: string }) {
+export function PushToggle({ level = "CRITICAL", className, compact }: { level?: "CRITICAL" | "WARNING"; className?: string; compact?: boolean }) {
   const [state, setState] = useState<State>("busy");
   const [error, setError] = useState<string | null>(null);
 
@@ -76,10 +76,11 @@ export function PushToggle({ level = "CRITICAL", className }: { level?: "CRITICA
         aria-busy={state === "busy"}
         aria-pressed={state === "on"}
         title={label[state]}
-        className={clsx("btn btn-secondary btn-sm max-w-full", state === "on" && "btn-on")}
+        aria-label={label[state]}
+        className={clsx("btn btn-secondary btn-sm max-w-full", compact && "btn-icon", state === "on" && "btn-on")}
       >
         {state === "busy" ? <Loader2 size={13} className="animate-spin" /> : state === "on" ? <Bell size={13} /> : <BellOff size={13} />}
-        <span className="hidden min-w-0 truncate sm:inline">{label[state]}</span>
+        {!compact && <span className="hidden min-w-0 truncate sm:inline">{label[state]}</span>}
       </button>
       {error && <span className="mt-1 text-[11px] text-crit">{error}</span>}
     </div>

@@ -57,6 +57,12 @@ def test_network_kpis_and_snapshot(client):
     snap = client.get("/api/v1/network/snapshot", params={"h": 12}).json()
     assert {s["station_id"] for s in snap["stations"]} == {"S_A", "S_B", "S_C"}
     assert all(s["load_ratio_q95"] >= 0 for s in snap["stations"])
+    hz = client.get("/api/v1/network/horizon").json()
+    assert [x["h"] for x in hz["hours"]] == list(range(1, 25))
+    at12 = next(x for x in hz["hours"] if x["h"] == 12)
+    assert abs(at12["q50"] - sum(s["q50"] for s in snap["stations"])) < 0.05
+    assert sum(at12["stations_by_risk"].values()) == 3
+    assert at12["worst_ratio_q95"] == max(round(s["load_ratio_q95"], 4) for s in snap["stations"])
 
 
 def test_live_arena_scores_observed_hours(client):
