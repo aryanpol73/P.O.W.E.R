@@ -22,6 +22,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
+import httpx
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -113,7 +114,12 @@ class Simulator:
     async def _sync_weather(self, s: AsyncSession) -> None:
         """One batched Open-Meteo request: the whole history window plus two days ahead."""
         past = min(92, self.settings.history_hours // 24 + 1)
-        n = await weather_agent.sync(s, past_days=past, grid_minute=self._grid_minute())
+        try:
+            n = await weather_agent.sync(s, past_days=past, grid_minute=self._grid_minute())
+        except httpx.HTTPError as exc:  # e.g. 429 from a shared cloud IP: keep running on the stored weather
+            log.warning("live weather unavailable (%s); retrying in 30 min", exc)
+            self._last_weather = utcnow() - WEATHER_EVERY + timedelta(minutes=30)
+            return
         await weather_agent.prune(s, utcnow() - timedelta(hours=12))  # the newest vintage covers the window
         self._last_weather = utcnow()
         log.info("live weather: %d rows", n)
