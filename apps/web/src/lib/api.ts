@@ -156,6 +156,21 @@ export interface Snapshot {
   reroutes: Reroute[];
 }
 
+export interface HorizonHour {
+  h: number;
+  target_time: string;
+  q50: number;
+  q95: number;
+  worst_ratio_q95: number;
+  risk: Risk;
+  stations_by_risk: Record<Risk, number>;
+}
+
+export interface NetworkHorizon {
+  forecast_origin: string;
+  hours: HorizonHour[];
+}
+
 export interface ForecastPoint {
   target_time: string;
   h: number;
@@ -305,6 +320,7 @@ export const api = {
       return list;
     }),
   snapshot: (h: number) => get<Snapshot>(`/network/snapshot?h=${h}`),
+  horizon: () => get<NetworkHorizon>("/network/horizon"),
   forecast: (id: string, model = "champion") => get<Forecast>(`/stations/${id}/forecast?model=${encodeURIComponent(model)}&history_hours=48`),
   explain: (id: string, h?: number) => get<Explanation>(`/stations/${id}/explain${h ? `?h=${h}` : ""}`),
   alerts: (status: "open" | "all" = "open") => get<Alert[]>(`/alerts?status=${status}&limit=50`),

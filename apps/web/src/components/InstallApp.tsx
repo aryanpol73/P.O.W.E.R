@@ -21,7 +21,7 @@ function isIos(): boolean {
 
 const DISMISS_KEY = "power-install-dismissed";
 
-export function InstallApp({ variant }: { variant: "sidebar" | "banner" }) {
+export function InstallApp({ variant }: { variant: "header" | "banner" }) {
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
   const [ios, setIos] = useState(false);
   const [installed, setInstalled] = useState(true);
@@ -75,19 +75,19 @@ export function InstallApp({ variant }: { variant: "sidebar" | "banner" }) {
   }
 
   const help = showIosHelp && (
-    <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-muted">
+    <p className="flex items-start gap-1.5 text-[11px] leading-snug text-muted">
       <Share size={13} className="mt-px shrink-0" />
       In Safari, tap Share, then <strong className="font-semibold text-text">Add to Home Screen</strong>.
     </p>
   );
 
-  if (variant === "sidebar") {
+  if (variant === "header") {
     return (
-      <div className="px-3 pb-2">
-        <button onClick={install} className="btn btn-secondary btn-sm w-full justify-center">
-          <Download size={14} /> Install app
+      <div className="relative">
+        <button onClick={install} title="Install app" aria-label="Install app" className="btn btn-secondary btn-icon">
+          <Download size={15} />
         </button>
-        {help}
+        {help && <div className="glass-panel panel-in absolute top-12 right-0 z-40 w-60 p-3 [transform-origin:top_right]">{help}</div>}
       </div>
     );
   }
@@ -100,7 +100,7 @@ export function InstallApp({ variant }: { variant: "sidebar" | "banner" }) {
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold">Install P.O.W.E.R.</div>
         <div className="text-[11px] text-muted">{ios ? "Add it to your Home Screen for full-screen alerts." : "Full-screen app with alert notifications."}</div>
-        {help}
+        {help && <div className="mt-2">{help}</div>}
       </div>
       <button onClick={install} className="btn btn-primary btn-sm shrink-0">
         {ios ? "How" : "Install"}

@@ -24,13 +24,13 @@ export function useLive() {
 }
 
 const INVALIDATE: Record<string, string[][]> = {
-  "forecast.updated": [["kpis"], ["snapshot"], ["stations"], ["forecast"], ["explain"], ["arena"], ["sim"]],
+  "forecast.updated": [["kpis"], ["snapshot"], ["horizon"], ["stations"], ["forecast"], ["explain"], ["arena"], ["sim"]],
   "alert.raised": [["alerts"]],
   "alert.resolved": [["alerts"]],
   "reroute.updated": [["snapshot"]],
   "sim.clock": [["sim"], ["health"]],
   "sim.control": [["sim"]],
-  "sim.reset": [["sim"], ["kpis"], ["snapshot"], ["stations"], ["forecast"], ["alerts"], ["arena"], ["explain"]],
+  "sim.reset": [["sim"], ["kpis"], ["snapshot"], ["horizon"], ["stations"], ["forecast"], ["alerts"], ["arena"], ["explain"]],
   "sim.end": [["sim"]],
   "drift.detected": [["drift"], ["agents"]],
   "agent.status": [["agents"], ["retrain-runs"], ["forecast"]],

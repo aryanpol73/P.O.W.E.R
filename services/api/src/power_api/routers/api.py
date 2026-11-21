@@ -395,6 +395,35 @@ async def snapshot(request: Request, h: int = Query(1, ge=1, le=24), s: AsyncSes
     }
 
 
+@router.get("/network/horizon", tags=["network"])
+async def horizon(request: Request, s: AsyncSession = Db) -> dict[str, Any]:
+    """Network summary for every horizon 1..24 from one origin: totals, worst station ratio, risk counts.
+
+    Feeds the console's horizon dock, so it can draw all 24 hours without 24 snapshot calls.
+    """
+    T = await _origin(s)
+    ch = await _champion_rows(s, request, T)
+    hours = []
+    if not ch.empty:
+        for h, g in ch.groupby("h"):
+            counts = {r.value: 0 for r in Risk}
+            for v in g["ratio"].fillna(0):
+                counts[_risk(float(v), request)] += 1
+            worst = float(g["ratio"].fillna(0).max())
+            hours.append(
+                {
+                    "h": int(h),
+                    "target_time": (from_db(T) + timedelta(hours=int(h))).isoformat(),
+                    "q50": round(float(g["q50"].sum()), 2),
+                    "q95": round(float(g["q95"].sum()), 2),
+                    "worst_ratio_q95": round(worst, 4),
+                    "risk": _risk(worst, request),
+                    "stations_by_risk": counts,
+                }
+            )
+    return {"forecast_origin": _iso(T), "hours": hours}
+
+
 # ------------------------------------------------------------------ models
 @router.get("/models", tags=["models"])
 async def models(request: Request) -> dict[str, Any]:
