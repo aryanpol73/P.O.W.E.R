@@ -580,6 +580,8 @@ async def sim_state(s: AsyncSession = Db) -> dict[str, Any]:
         "paused": st.paused,
         "speed_ticks_per_min": st.speed_ticks_per_min,
         "week_offset_hours": st.week_offset_hours,
+        # live: hour T is closed at T + 1 h, so the next forecast lands when the hour after it ends
+        "next_update": _iso(st.sim_now + timedelta(hours=2)) if st.mode == "LIVE_SHADOW" else None,
     }
 
 

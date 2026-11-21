@@ -2,6 +2,15 @@
 
 Steps are serialized with a lock, so the background loop and a manual "tick" can never interleave,
 and each agent is idempotent per origin.
+
+Modes
+* REPLAY:      walks the held-out test period at a chosen speed (hours per minute), archived weather.
+* LIVE_SHADOW: runs on the real clock. An hour is closed only once it has actually ended, so the console
+               always shows the latest finished hour and the forecast for the hours ahead. Demand comes
+               from each site's paired training site (its held-out test period, moved by whole weeks so
+               weekday and hour match today); weather is the live Open-Meteo forecast, refreshed every
+               few hours. When the test period runs out the replay wraps back to its start, still on
+               whole weeks, so the live stream never ends.
 """
 
 from __future__ import annotations
@@ -31,6 +40,9 @@ from power_core.splits import SplitBounds
 
 log = logging.getLogger("power.sim")
 HOUR = timedelta(hours=1)
+LIVE = "LIVE_SHADOW"
+WEATHER_EVERY = timedelta(hours=3)  # live weather refresh
+MAX_CATCH_UP = timedelta(hours=48)  # further behind than this after downtime: start afresh at now
 
 
 class Simulator:
@@ -44,6 +56,7 @@ class Simulator:
         self.last_error: str | None = None
         self._push_tasks: set[asyncio.Task[Any]] = set()
         self._vapid: push.VapidKeys | None = None
+        self._last_weather: datetime | None = None
 
     def vapid(self) -> push.VapidKeys:
         if self._vapid is None:
@@ -64,28 +77,62 @@ class Simulator:
     def _grid_minute(self) -> int:
         return self.engine.deployment.grid_minute if self.engine.deployment else 0
 
+    def test_window(self) -> tuple[datetime, datetime]:
+        """The held-out test period on the deployed timeline (training timeline moved to local wall-clock time)."""
+        p = self.settings.repo_root / "data" / "processed" / f"splits_{self.settings.source}.json"
+        b = SplitBounds.from_dict(json.loads(p.read_text(encoding="utf-8")))
+        dep = self.engine.deployment
+        if dep is None:
+            return to_db(b.test_start), to_db(b.test_end)
+        return to_db(dep.retime_one(b.test_start)), to_db(dep.retime_one(b.test_end))
+
     def default_start(self) -> datetime:
         if self.settings.sim_start:
             return to_db(self.settings.sim_start)
-        p = self.settings.repo_root / "data" / "processed" / f"splits_{self.settings.source}.json"
-        b = SplitBounds.from_dict(json.loads(p.read_text(encoding="utf-8")))
-        dep = self.engine.deployment  # the deployed timeline is the training one moved to local wall-clock time
-        # The buffer is pre-filled with the (earlier, observed) history.
-        return to_db(dep.retime_one(b.test_start) if dep else b.test_start)
+        return self.test_window()[0]  # the buffer is pre-filled with the (earlier, observed) history
+
+    def live_origin(self, now: datetime | None = None) -> datetime:
+        """Start of the latest hour that has fully ended, on the deployment's hour grid."""
+        now = now or utcnow()
+        top = now.replace(minute=self._grid_minute(), second=0, microsecond=0)
+        if top > now:
+            top -= HOUR
+        return top - HOUR
+
+    def live_offset(self, T: datetime, current: int | None = None) -> int:
+        """Whole-week shift from origin T back to its source hour in the test period.
+
+        The current shift is kept while its source hour is still inside the test period (a continuous
+        stream); otherwise the stream restarts at the first week of the test period, same weekday and hour.
+        """
+        start, end = self.test_window()
+        if current is not None and start <= T - timedelta(hours=current) <= end:
+            return current
+        return weather_agent.week_offset_hours(start, T)
+
+    async def _sync_weather(self, s: AsyncSession) -> None:
+        """One batched Open-Meteo request: the whole history window plus two days ahead."""
+        past = min(92, self.settings.history_hours // 24 + 1)
+        n = await weather_agent.sync(s, past_days=past, grid_minute=self._grid_minute())
+        await weather_agent.prune(s, utcnow() - timedelta(hours=12))  # the newest vintage covers the window
+        self._last_weather = utcnow()
+        log.info("live weather: %d rows", n)
 
     async def ensure_state(self) -> m.SimState:
         async with self.maker() as s:
             st = await repo.sim_state(s)
-            if st is not None:
-                return st
-        return await self.reset()
+        if st is not None and (st.mode != LIVE or self.live_origin() - st.sim_now <= MAX_CATCH_UP):
+            return st  # live: the loop catches up the hours missed while the API was down
+        return await self.reset(mode=st.mode if st is not None else None)
 
     async def reset(self, start: datetime | None = None, mode: str | None = None) -> m.SimState:
         async with self._lock:
             mode = (mode or self.settings.sim_mode).upper()
-            T0 = start or self.default_start()
-            offset = weather_agent.week_offset_hours(T0, utcnow()) if mode == "LIVE_SHADOW" else 0
-            T = T0 + timedelta(hours=offset)
+            if mode == LIVE:  # live always starts at the latest finished hour; `start` is a replay option
+                T = self.live_origin()
+                offset = self.live_offset(T)
+            else:
+                T, offset = start or self.default_start(), 0
             async with self.maker() as s:
                 for t in (
                     m.PredictionExplanation,
@@ -100,31 +147,33 @@ class Simulator:
                 if mode == "LIVE_SHADOW":
                     await s.execute(delete(m.WeatherHourly).where(m.WeatherHourly.source == "forecast"))
                 await replay.copy_hours(s, T - timedelta(hours=self.settings.history_hours - 1), T, offset)
-                st = m.SimState(id=1, mode=mode, sim_now=T, paused=True, speed_ticks_per_min=6.0, week_offset_hours=offset)
+                st = m.SimState(
+                    id=1, mode=mode, sim_now=T, paused=mode != LIVE, speed_ticks_per_min=6.0, week_offset_hours=offset
+                )
                 s.add(st)
                 await s.commit()
             self.alerts = alerts_mod.AlertAgent(threshold_config(self.settings.repo_root))
-            if mode == "LIVE_SHADOW":
+            if mode == LIVE:
                 async with self.maker() as s:
-                    await weather_agent.sync(
-                        s,
-                        past_days=min(92, self.settings.history_hours // 24 + 1),
-                        grid_minute=self._grid_minute(),
-                    )
+                    await self._sync_weather(s)
                     await s.commit()
-            await self._process(T)
+            await self._process(T, live=mode == LIVE)
         await self.bus.publish("sim", "sim.reset", {"sim_now": from_db(T).isoformat(), "mode": mode})
         async with self.maker() as s:
             return await repo.sim_state(s)  # type: ignore[return-value]
 
     # ------------------------------------------------------------------ pipeline
-    async def _process(self, T: datetime) -> dict[str, Any]:
-        """Forecast + alerts for origin T (buffer already holds hour T)."""
+    async def _process(self, T: datetime, live: bool = False) -> dict[str, Any]:
+        """Forecast + alerts for origin T (buffer already holds hour T).
+
+        Live, the forecast is made when hour T ends (T + 1 h), so a weather forecast issued by then counts.
+        """
         key = T.isoformat()
         async with self.maker() as s:
             if await base.already_done(s, "pipeline", key):
                 return {"skipped": True}
-            fc = await forecaster.run(s, self.engine, T, self.settings.history_hours)
+            decided = T + HOUR if live else None
+            fc = await forecaster.run(s, self.engine, T, self.settings.history_hours, decided_at=decided)
             res = await self.alerts.run(s, T, forecaster.champion_frame(fc, self.engine.champion))
             await base.record(s, "pipeline", key, "ok", {"latency_ms": round(fc.latency_ms, 1), "alerts": len(res["raised"])})
             await s.commit()
@@ -167,18 +216,26 @@ class Simulator:
                 if st is None:
                     raise RuntimeError("simulator not initialised")
                 T = st.sim_now + HOUR
+                live = st.mode == LIVE
+                if live and utcnow() < T + HOUR:  # hour T has not ended yet
+                    return {"sim_now": from_db(st.sim_now).isoformat(), "waiting": True}
+                if live:
+                    st.week_offset_hours = self.live_offset(T, st.week_offset_hours)  # wraps at the test end
                 n = await replay.close_hour(s, T, st.week_offset_hours)
                 if n == 0:
                     st.paused = True
                     await s.commit()
                     await self.bus.publish("sim", "sim.end", {"sim_now": from_db(st.sim_now).isoformat()})
                     return {"end_of_data": True}
-                if st.mode == "LIVE_SHADOW" and T.hour == 0:
-                    await weather_agent.sync(s, grid_minute=self._grid_minute())
+                if live and (self._last_weather is None or utcnow() - self._last_weather >= WEATHER_EVERY):
+                    try:
+                        await self._sync_weather(s)
+                    except Exception:  # noqa: BLE001 - keep forecasting on the last good weather
+                        log.exception("live weather sync failed")
                 st.sim_now = T
                 await s.commit()
             await self.bus.publish("telemetry", "telemetry.tick", {"ts": from_db(T).isoformat(), "rows": n})
-            res = await self._process(T)
+            res = await self._process(T, live=live)
             await self.bus.publish("sim", "sim.clock", {"sim_now": from_db(T).isoformat()})
             return {"sim_now": from_db(T).isoformat(), **{k: len(v) if isinstance(v, list) else v for k, v in res.items()}}
 
@@ -188,7 +245,13 @@ class Simulator:
             try:
                 async with self.maker() as s:
                     st = await repo.sim_state(s)
-                if st is not None and not st.paused:
+                if st is not None and st.mode == LIVE:
+                    # real clock: close each hour once it has ended (quickly catching up after downtime)
+                    if st.sim_now + 2 * HOUR <= utcnow():
+                        await self.step()
+                    else:
+                        await asyncio.sleep(5.0)
+                elif st is not None and not st.paused:
                     await self.step()
                     await asyncio.sleep(60.0 / max(st.speed_ticks_per_min, 0.1))
                 else:

@@ -90,6 +90,13 @@ async def sync(
     return n
 
 
+async def prune(session: AsyncSession, before: datetime) -> None:
+    """Drop forecast vintages issued before ``before``; the newest vintage also carries the recent past."""
+    await session.execute(
+        delete(m.WeatherHourly).where(and_(m.WeatherHourly.source == "forecast", m.WeatherHourly.issued_at < before))
+    )
+
+
 def week_offset_hours(source_origin: datetime, now: datetime) -> int:
     """Whole weeks that move a historical origin onto (or just before) the current hour."""
     weeks = int((now - source_origin).total_seconds() // (168 * 3600))

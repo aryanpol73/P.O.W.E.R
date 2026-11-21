@@ -100,6 +100,8 @@ export interface SimState {
   paused: boolean;
   speed_ticks_per_min: number;
   week_offset_hours: number;
+  /** live mode: when the next hour closes and a new forecast lands */
+  next_update?: string | null;
 }
 
 export interface Kpis {

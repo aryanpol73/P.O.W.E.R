@@ -100,7 +100,7 @@ def client(power_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  
     seed(make_sync_engine(url), power_root, "palo_alto")
     settings = Settings(DATABASE_URL=url, POWER_ROOT=power_root, POWER_EMBEDDED_WORKER=False, ADMIN_TOKEN="secret",
                         POWER_HISTORY_HOURS=720, POWER_DEPLOYMENT="none",
-                        POWER_DISCOVERY=False)
+                        POWER_DISCOVERY=False, SIM_MODE="REPLAY")
     with TestClient(create_app(settings)) as c:
         c.headers.update({"Authorization": "Bearer secret"})
         yield c

@@ -35,9 +35,11 @@ async def _frame(session: AsyncSession, stmt) -> pd.DataFrame:  # type: ignore[n
 async def weather(session: AsyncSession, start: datetime, end: datetime, origin: datetime) -> pd.DataFrame:
     """One row per (station, valid hour) in [start, end].
 
-    Vintage rule: a *forecast* row counts only if it was issued at or before the origin T, and the
-    latest such vintage wins. *Archive* rows (observed weather) are the fallback; in REPLAY mode they
-    act as a perfect forecast, the documented assumption of the training data.
+    Vintage rule: a *forecast* row counts only if it was issued at or before ``origin`` (the moment the
+    forecast is made), and the latest such vintage wins. *Archive* rows (observed weather) are the
+    fallback; in REPLAY mode they act as a perfect forecast, the documented assumption of the training
+    data. Hours no allowed row covers (live catch-up after downtime, issued later) take the earliest
+    vintage there is rather than no weather at all.
     """
     w = await _frame(
         session,
@@ -47,14 +49,19 @@ async def weather(session: AsyncSession, start: datetime, end: datetime, origin:
     )
     if w.empty:
         return pd.DataFrame(columns=["station_id", "ts", "temperature_2m_c", "precipitation_mm"])
-    w = w.loc[(w["source"] == "archive") | (w["issued_at"] <= origin)]
-    w["rank"] = np.where(w["source"] == "forecast", 0, 1)  # forecast vintages preferred over archive
-    w = w.sort_values(["station_id", "valid_time", "rank", "issued_at"], ascending=[True, True, True, False])
+    allowed = (w["source"] == "archive") | (w["issued_at"] <= origin)
+    w["rank"] = np.where(allowed, np.where(w["source"] == "forecast", 0, 1), 2)  # forecast > archive > too late
+    late = ~allowed  # among too-late vintages the earliest is the least informed by hindsight
+    issued = pd.to_datetime(w["issued_at"]).fillna(pd.Timestamp(0)).astype("int64")
+    w["order"] = np.where(late, issued, -issued)
+    w = w.sort_values(["station_id", "valid_time", "rank", "order"])
     w = w.drop_duplicates(["station_id", "valid_time"])
     return w.rename(columns={"valid_time": "ts"})[["station_id", "ts", "temperature_2m_c", "precipitation_mm"]]
 
 
-async def serving_panel(session: AsyncSession, origin: pd.Timestamp, hours: int) -> pd.DataFrame:
+async def serving_panel(
+    session: AsyncSession, origin: pd.Timestamp, hours: int, decided_at: datetime | None = None
+) -> pd.DataFrame:
     """Gap-free panel for every modeled station: observed buffer up to T, NaN demand for T+1..T+24.
 
     Missing buffer hours are imputed from the same hour one week earlier (else 0) and flagged
@@ -65,7 +72,7 @@ async def serving_panel(session: AsyncSession, origin: pd.Timestamp, hours: int)
     end = T + timedelta(hours=H)
     sts = [s.station_id for s in await stations(session)]
     buf = await _frame(session, select(m.LiveBuffer.__table__).where(and_(m.LiveBuffer.ts >= start, m.LiveBuffer.ts <= T)))
-    wx = await weather(session, start, end, T)
+    wx = await weather(session, start, end, decided_at or T)
     grid = pd.MultiIndex.from_product([sts, pd.date_range(start, end, freq="h")], names=["station_id", "ts"])
     panel = pd.DataFrame(index=grid).reset_index()
     if not buf.empty:

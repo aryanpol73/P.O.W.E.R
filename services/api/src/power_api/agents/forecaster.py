@@ -15,9 +15,12 @@ from power_api.db.session import from_db, to_db
 from power_api.serving.engine import Forecast, ServingEngine
 
 
-async def run(session: AsyncSession, engine: ServingEngine, T: datetime, history_hours: int) -> Forecast:
+async def run(
+    session: AsyncSession, engine: ServingEngine, T: datetime, history_hours: int, decided_at: datetime | None = None
+) -> Forecast:
+    """``decided_at``: when the forecast is made (default: the origin); weather issued after it is not used."""
     origin = from_db(T)
-    panel = await repo.serving_panel(session, origin, history_hours)
+    panel = await repo.serving_panel(session, origin, history_hours, decided_at=decided_at)
     fc = await asyncio.to_thread(engine.forecast, panel, origin)
     cap = {s.station_id: s.transformer_kw for s in await repo.stations(session)}
     await session.execute(delete(m.ModelPrediction).where(m.ModelPrediction.forecast_origin == T))
