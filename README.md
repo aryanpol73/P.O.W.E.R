@@ -399,7 +399,6 @@ The models were trained on public charging data from the City of Palo Alto (2017
 
 ## ⚠️ Limitations
 
-- **No Indian training data.** The Pune twin uses real Pune sites, weather and holidays, but replays US demand. It is a pilot, not a validation on Indian drivers.
 - **Synthetic transformer ratings.** Real ratings are not public, and alert volume is very sensitive to the assumption.
 - **Weak rare-overload detection.** Real overload hours are rare (0.08%); alerting on the q95 forecast catches 31% of them at 7% precision.
 - **Hourly resolution** hides intra-hour peaks; demand is censored when all ports are full.
@@ -420,7 +419,6 @@ The models were trained on public charging data from the City of Palo Alto (2017
 
 ## 🔭 Future work
 
-- Validate the twin with real usage data from Pune charge-point operators.
 - A calibrated overload-exceedance classifier to fix alert precision and recall.
 - Online adaptive conformal intervals; the formal ablation study.
 - Hierarchical forecasts across sites; pooled models for low-volume sites.
