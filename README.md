@@ -446,7 +446,7 @@ The models were trained on public charging data from the City of Palo Alto (2017
 - Amezquita et al. (2024). *Energies* 17:3396 · Zhu et al. (2019). *Energies* 12:2692 · Skala et al. (2023). *Energies* 16:4093 · Shern et al. (2024). *Energies* 17:5772 · Adnane et al. (2023). *Energies* 16:4897.
 - Romano, Patterson & Candès (2019). *Conformalized quantile regression.* · Gibbs & Candès (2021). *Adaptive conformal inference.* · Lundberg & Lee (2017). *SHAP.* · Ke et al. (2017). *LightGBM.*
 
-Data: City of Palo Alto Open Data, Caltech ACN-Data, Open-Meteo (CC-BY 4.0) and © OpenStreetMap contributors (ODbL). Map tiles: OpenFreeMap
+Data: City of Palo Alto Open Data, Caltech ACN-Data, Open-Meteo (CC-BY 4.0) and © OpenStreetMap contributors (ODbL). Map tiles: OpenFreeMap.
 
 ---
 
