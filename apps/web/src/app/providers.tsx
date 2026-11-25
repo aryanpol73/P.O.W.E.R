@@ -10,7 +10,13 @@ export function Providers({ children }: { children: ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 },
+          // A free-tier API sleeps when idle and needs about a minute to wake: keep retrying for ~90 s.
+          queries: {
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+            retry: 7,
+            retryDelay: (n) => Math.min(2_000 * 2 ** n, 20_000),
+          },
         },
       }),
   );
