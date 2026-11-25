@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 
 import { CopilotPanel } from "./CopilotPanel";
 import { InstallApp } from "./InstallApp";
+import { ServerWaking } from "./ServerWaking";
 import { SimControls } from "./SimControls";
 
 const NAV = [
@@ -54,6 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className={clsx(isMap ? "relative h-dvh overflow-hidden" : "mx-auto w-full max-w-[1400px] px-4 pt-24 pb-28 md:px-6 md:pt-28 md:pb-12")}>
         {children}
       </main>
+      <ServerWaking />
       <CopilotPanel />
       <InstallApp variant="banner" />
 

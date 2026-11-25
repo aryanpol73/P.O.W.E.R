@@ -1,0 +1,30 @@
+# Free Render services sleep after 15 idle minutes and take about a minute to wake. This pings them
+# every 5 minutes (GitHub may run scheduled jobs late, hence the margin) so the console opens instantly.
+#
+# Render's free plan allows 750 instance hours a month per workspace: the API alone running all month
+# uses ~744. The copilot is therefore only kept awake until KEEP_COPILOT_UNTIL (YYYY-MM-DD, UTC); after
+# that it wakes on its first chat message (~30 s). Set the repo variable to change it.
+name: Keep Render awake
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_URL: ${{ vars.POWER_API_URL || 'https://power-api-btax.onrender.com' }}
+      COPILOT_URL: ${{ vars.POWER_COPILOT_URL || 'https://power-copilot.onrender.com' }}
+      KEEP_COPILOT_UNTIL: ${{ vars.KEEP_COPILOT_UNTIL || '2026-11-30' }}
+    steps:
+      - name: API
+        run: curl -fsS -m 120 --retry 3 --retry-delay 15 -o /dev/null -w "API %{http_code} in %{time_total}s\n" "$API_URL/api/v1/health"
+      - name: Copilot
+        run: |
+          if [ "$(date -u +%F)" \> "$KEEP_COPILOT_UNTIL" ]; then echo "copilot ping off after $KEEP_COPILOT_UNTIL"; exit 0; fi
+          curl -sS -m 120 -o /dev/null -w "copilot %{http_code} in %{time_total}s\n" "$COPILOT_URL/copilot/status" || true
